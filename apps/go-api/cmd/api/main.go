@@ -46,7 +46,7 @@ func main() {
 	app.Use(middleware.Recover())
 	app.Use(middleware.Logger())
 	app.Use(cors.New(cors.Config{
-		AllowOrigins: []string{"*"},
+		AllowOrigins: []string{cfg.CORSOrigin},
 		AllowMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowHeaders: []string{"Origin", "Content-Type", "Accept", "Authorization"},
 	}))

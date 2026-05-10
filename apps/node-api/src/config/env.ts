@@ -15,5 +15,11 @@ export class EnvConfig {
     this.AUTH_PASSWORD = process.env.AUTH_PASSWORD ?? 'secret';
     this.NODE_ENV = process.env.NODE_ENV ?? 'development';
     this.CORS_ORIGIN = process.env.CORS_ORIGIN ?? '*';
+
+    if (this.JWT_SECRET === 'default-secret-change-in-production') {
+      console.warn(
+        'WARNING: Using default JWT_SECRET. Set JWT_SECRET environment variable for production.',
+      );
+    }
   }
 }
