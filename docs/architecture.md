@@ -137,7 +137,7 @@ coding-challenge/
 
 | Componente | Tecnología | Versión | Justificación |
 |------------|-----------|---------|---------------|
-| Lenguaje | Go | 1.23+ | Rendimiento, concurrencia |
+| Lenguaje | Go | 1.25+ | Rendimiento, concurrencia |
 | Framework | Fiber | v3 | Última versión, ultra rápido |
 | Matemático | gonum | v0.17.0 | Librería científica para Go. Acelera operaciones matriciales |
 | JWT | golang-jwt/jwt | v5.2.0 | Estándar JWT en Go |

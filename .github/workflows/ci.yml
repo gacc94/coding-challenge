@@ -1,0 +1,131 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+env:
+  GO_VERSION: '1.25'
+  NODE_VERSION: '20'
+
+jobs:
+  # ─── GO API ──────────────────────────────────────
+  lint-go:
+    name: Lint (Go)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/go-api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: apps/go-api/go.sum
+      - run: go vet ./...
+
+  test-go:
+    name: Test (Go) · Coverage
+    runs-on: ubuntu-latest
+    needs: lint-go
+    defaults:
+      run:
+        working-directory: apps/go-api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: apps/go-api/go.sum
+      - run: go test -coverpkg=./internal/...,./pkg/... ./... -v -coverprofile=coverage.out
+      - run: go tool cover -func=coverage.out
+      - name: Upload Go coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: go-coverage
+          path: apps/go-api/coverage.out
+          retention-days: 7
+
+  # ─── NODE API ────────────────────────────────────
+  lint-node:
+    name: Lint (Node) · TypeCheck
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/node-api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: apps/node-api/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+
+  test-node:
+    name: Test (Node) · Vitest + Coverage
+    runs-on: ubuntu-latest
+    needs: lint-node
+    defaults:
+      run:
+        working-directory: apps/node-api
+    env:
+      JWT_SECRET: test-secret-integration
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: apps/node-api/package-lock.json
+      - run: npm ci
+      - run: npm run test:coverage
+      - name: Upload Node coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: node-coverage
+          path: apps/node-api/coverage/
+          retention-days: 7
+
+  # ─── BUILD DOCKER ────────────────────────────────
+  build:
+    name: Build (Docker)
+    runs-on: ubuntu-latest
+    needs: [test-go, test-node]
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker compose build
+
+  # ─── COVERAGE REPORT ─────────────────────────────
+  coverage-report:
+    name: Coverage Report
+    runs-on: ubuntu-latest
+    needs: [test-go, test-node]
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download Go coverage
+        uses: actions/download-artifact@v4
+        with:
+          name: go-coverage
+          path: apps/go-api/
+      - name: Download Node coverage
+        uses: actions/download-artifact@v4
+        with:
+          name: node-coverage
+          path: apps/node-api/coverage/
+      - name: Post coverage summary
+        run: |
+          echo "### Go Coverage" >> "$GITHUB_STEP_SUMMARY"
+          tail -1 apps/go-api/coverage.out | awk '{print "Go  total: "$NF}' >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "### Node Coverage" >> "$GITHUB_STEP_SUMMARY"
+          cat apps/node-api/coverage/coverage-summary.json 2>/dev/null | python3 -c "
+          import sys,json
+          d = json.load(sys.stdin).get('total',{})
+          for k in ['statements','branches','functions','lines']:
+            print(f'Node {k}: {d.get(k,{}).get(\"pct\",\"N/A\")}%')
+          " >> "$GITHUB_STEP_SUMMARY" || echo "Node coverage data not available" >> "$GITHUB_STEP_SUMMARY"
