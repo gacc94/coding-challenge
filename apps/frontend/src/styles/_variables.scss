@@ -1,0 +1,42 @@
+// ─── Colors (Gallery Aesthetic)
+$color-canvas: #ffffff;
+$color-canvas-parchment: #f5f5f7;
+$color-surface-dark: #272729;
+$color-surface-black: #000000;
+$color-primary: #0066cc;
+$color-primary-focus: #0071e3;
+$color-primary-on-dark: #2997ff;
+$color-ink: #1d1d1f;
+$color-ink-muted: #7a7a7a;
+$color-on-dark: #ffffff;
+$color-on-dark-muted: #cccccc;
+$color-hairline: #e0e0e0;
+$color-surface-pearl: #fafafc;
+$color-error: #ba1a1a;
+
+// ─── Typography
+$font-family: 'Inter', system-ui, -apple-system, sans-serif;
+$font-size-body: 17px;
+$font-size-caption: 14px;
+$font-size-fine-print: 12px;
+$line-height-body: 1.47;
+$line-height-heading: 1.2;
+
+// ─── Spacing
+$spacing-xs: 8px;
+$spacing-sm: 12px;
+$spacing-md: 17px;
+$spacing-lg: 24px;
+$spacing-xl: 32px;
+$spacing-xxl: 48px;
+$section-padding: 80px;
+
+// ─── Radius
+$radius-sm: 8px;
+$radius-md: 11px;
+$radius-lg: 18px;
+$radius-pill: 9999px;
+
+// ─── Layout
+$content-max-width: 1200px;
+$toolbar-height: 56px;

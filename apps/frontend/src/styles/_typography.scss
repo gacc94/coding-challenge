@@ -1,0 +1,60 @@
+.display-md {
+  font-size: 32px;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  margin: 0;
+  font-family: Inter, system-ui, -apple-system, sans-serif;
+}
+
+.display-lg {
+  font-size: 40px;
+  font-weight: 600;
+  line-height: 1.1;
+  margin: 0;
+  font-family: Inter, system-ui, -apple-system, sans-serif;
+}
+
+.body-text {
+  font-size: 17px;
+  line-height: 1.47;
+  letter-spacing: -0.022em;
+  margin: 0;
+  font-family: Inter, system-ui, -apple-system, sans-serif;
+}
+
+.caption-text {
+  font-size: 14px;
+  line-height: 1.43;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+.fine-print {
+  font-size: 12px;
+  line-height: 1;
+  letter-spacing: -0.12px;
+  margin: 0;
+}
+
+.spacer {
+  flex: 1 1 auto;
+}
+
+.tile {
+  padding: 80px 0;
+  border-radius: 0;
+
+  &--light { background: #ffffff; }
+  &--parchment { background: #f5f5f7; }
+  &--dark {
+    background: #272729;
+    color: #ffffff;
+  }
+}
+
+.content-wrapper {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 24px;
+}

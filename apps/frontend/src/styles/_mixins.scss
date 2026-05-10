@@ -1,0 +1,85 @@
+@use 'variables' as *;
+
+@mixin tile-section($bg: $color-canvas) {
+  padding: $section-padding 0;
+  border-radius: 0;
+  background: $bg;
+}
+
+@mixin tile-dark {
+  background: $color-surface-dark;
+  color: $color-on-dark;
+
+  .stats-panel__heading,
+  .stats-panel__value,
+  .diagonal-heading { color: $color-on-dark; }
+  .stats-panel__label { color: $color-on-dark-muted; }
+}
+
+@mixin cta-pill {
+  padding: 11px 22px;
+  border: none;
+  border-radius: $radius-pill;
+  background: $color-primary;
+  color: $color-on-dark;
+  font-size: $font-size-body;
+  font-family: $font-family;
+  cursor: pointer;
+  transition: transform 0.1s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: $spacing-xs;
+  white-space: nowrap;
+
+  &:active { transform: scale(0.95); }
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
+  &:focus-visible { outline: 2px solid $color-primary-focus; outline-offset: 2px; }
+}
+
+@mixin heading-md {
+  font-size: 32px;
+  font-weight: 600;
+  line-height: $line-height-heading;
+  letter-spacing: -0.01em;
+  margin: 0 0 8px;
+}
+
+@mixin body-text($color: $color-ink-muted) {
+  font-size: $font-size-body;
+  line-height: $line-height-body;
+  color: $color;
+  margin: 0 0 $spacing-lg;
+  letter-spacing: -0.022em;
+}
+
+@mixin toolbar-nav {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: $color-surface-black !important;
+}
+
+@mixin nav-link {
+  color: $color-on-dark-muted;
+  text-decoration: none;
+  font-size: $font-size-caption;
+  padding: $spacing-xs $spacing-sm;
+  border-radius: $radius-sm;
+  transition: color 0.2s;
+
+  &:hover { color: $color-on-dark; }
+
+  &--active {
+    color: $color-primary-on-dark;
+  }
+}
+
+// ─── Responsive Breakpoints
+$breakpoint-phone: 640px;
+$breakpoint-tablet: 834px;
+$breakpoint-desktop: 1068px;
+$breakpoint-wide: 1440px;
+
+@mixin phone { @media (max-width: $breakpoint-phone) { @content; } }
+@mixin tablet { @media (max-width: $breakpoint-tablet) { @content; } }
+@mixin desktop { @media (max-width: $breakpoint-desktop) { @content; } }

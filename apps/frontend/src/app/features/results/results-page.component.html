@@ -1,0 +1,54 @@
+@if (response(); as data) {
+  <div class="results">
+    <!-- Global Nav -->
+    <nav class="results__global-nav">
+      <span class="results__nav-brand">Coding Challenge QR</span>
+      <div class="results__nav-links">
+        <a class="results__nav-link" routerLink="/overview">Overview</a>
+        <a class="results__nav-link" routerLink="/input">Input</a>
+        <a class="results__nav-link results__nav-link--active"
+          routerLink="/results">Results</a>
+      </div>
+      <div class="results__nav-actions">
+        <button class="results__logout-btn" mat-icon-button
+                (click)="auth.logout()" matTooltip="Sign out">
+          <mat-icon class="results__logout-icon">logout</mat-icon>
+        </button>
+      </div>
+    </nav>
+
+    <!-- Sub Nav -->
+    <nav class="results__sub-nav">
+      <span class="results__sub-nav-title">Results</span>
+    </nav>
+
+    <div class="results__content">
+      <a class="results__back-link" routerLink="/input">
+        <mat-icon class="results__back-icon">arrow_back</mat-icon>
+        New calculation
+      </a>
+    </div>
+
+    <!-- Matrices Tile (full-bleed parchment) -->
+    <section class="results__matrices-tile">
+      <div class="results__matrices-inner">
+        <h2 class="results__matrices-heading">Matrices.</h2>
+        <div class="results__matrices-grid">
+          <gacc-matrix-display [data]="data.original" title="Original Matrix" />
+          <gacc-matrix-display [data]="data.rotated" title="Rotated Matrix" [highlight]="true" />
+          <gacc-matrix-display [data]="data.Q" title="Q (Orthogonal)" />
+          <gacc-matrix-display [data]="data.R" title="R (Upper Triangular)" />
+        </div>
+      </div>
+    </section>
+
+    <!-- Stats Tile (full-bleed dark) -->
+    @if (data.stats) {
+      <section class="results__stats-tile">
+        <div class="results__stats-inner">
+          <gacc-stats-panel [stats]="data.stats" />
+        </div>
+      </section>
+    }
+  </div>
+}

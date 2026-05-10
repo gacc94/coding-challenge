@@ -38,6 +38,22 @@ services:
       timeout: 10s
       retries: 3
 
+  frontend:
+    build:
+      context: ./apps/frontend
+      dockerfile: Dockerfile
+    ports:
+      - '80:80'
+    depends_on:
+      - go-api
+    networks:
+      - challenge-network
+    healthcheck:
+      test: ['CMD', 'wget', '-q', '--spider', 'http://localhost:80/']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
 networks:
   challenge-network:
     driver: bridge

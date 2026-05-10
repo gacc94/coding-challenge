@@ -35,13 +35,13 @@ type FactorizationRequest struct {
 // FactorizationResponse representa la respuesta completa
 // @Description Resultado de rotación + factorización QR + estadísticas
 type FactorizationResponse struct {
-	Original [][]float64     `json:"original"`
-	Rotated  [][]float64     `json:"rotated"`
-	Rotation string          `json:"rotation"`
-	Q        [][]float64     `json:"Q"`
-	R        [][]float64     `json:"R"`
-	Stats    *StatsResponse  `json:"stats"`
-	Error    *ErrorResponse  `json:"error,omitempty"`
+	Original [][]float64    `json:"original"`
+	Rotated  [][]float64    `json:"rotated"`
+	Rotation string         `json:"rotation"`
+	Q        [][]float64    `json:"Q"`
+	R        [][]float64    `json:"R"`
+	Stats    *StatsResponse `json:"stats"`
+	Error    *ErrorResponse `json:"error,omitempty"`
 }
 
 // StatsRequest enviado a la API Node.js
@@ -65,8 +65,8 @@ type StatsResponse struct {
 // DiagonalResult representa el resultado de verificación de matrices diagonales
 // @Description Matrices que son diagonales
 type DiagonalResult struct {
-	Count    int                   `json:"count"`
-	Matrices []DiagonalMatrixInfo  `json:"matrices"`
+	Count    int                  `json:"count"`
+	Matrices []DiagonalMatrixInfo `json:"matrices"`
 }
 
 // DiagonalMatrixInfo contiene info de una matriz diagonal encontrada

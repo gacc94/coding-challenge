@@ -1,860 +1,355 @@
-# Especificación Frontend - Angular 21
+# Especificacion Frontend — Angular 21
 
-**Fase**: 3 (Opcional pero planificada)  
-**Framework**: Angular 21  
-**UI**: Angular Material + CDK  
-**Estilos**: SCSS con variables y mixins  
-**Testing**: Vitest (incluido por defecto en Angular 21)  
-**HTTP**: httpResource (signal-based)  
-**Forms**: Signal Forms
+**Framework**: Angular 21.2  
+**UI**: Angular Material 3 + CDK  
+**Estilos**: SCSS · Metodologia BEM  
+**Arquitectura**: Container/Presentational  
+**Diseno**: Gallery Aesthetic  
+**Testing**: Vitest via Angular Builder  
+**Package Manager**: npm
 
 ---
 
-## 1. Visión General
+## 1. Vision General
 
-El frontend en Angular 21 proporciona una interfaz moderna con **Angular Material** para consumir la API Go y visualizar la rotación de matrices, factorización QR y estadísticas.
+SPA con 4 rutas que consume la Go API para visualizar rotacion de matrices, factorizacion QR y estadisticas. El diseno sigue la guia **Gallery Aesthetic**: photography-first, paleta monocromatica neutra, un solo acento Action Blue (#0066cc), tiles full-bleed alternando fondos claros y oscuros, y tipografia Inter con tracking negativo.
 
-### Diagrama de Componentes
+### Pantallas
+
+| Ruta | Acceso | Pantalla | Componente |
+|---|---|---|---|
+| `/login` | Publico | Login · Autenticacion JWT | `LoginPage` |
+| `/overview` | Privado · authGuard | Vista general con accesos rapidos | `OverviewPage` |
+| `/input` | Privado · authGuard | Formulario de matriz + selector de rotacion | `InputPage` |
+| `/results` | Privado · authGuard | Visualizacion de Q, R, rotated y estadisticas | `ResultsPage` |
+
+### Diagrama de Arquitectura
 
 ```mermaid
 graph TD
-    App["AppComponent<br/>Standalone"]
-    App --> Router["RouterOutlet<br/>Lazy Loading"]
-    
-    Router --> Login["LoginComponent<br/>Signal Forms<br/>MatCard + MatInput"]
-    Router --> Dashboard["DashboardComponent<br/>httpResource<br/>OnPush CD"]
-    
-    Login --> AuthService["AuthService<br/>signals: token, isAuthenticated"]
-    
-    Dashboard --> MatrixInput["MatrixInputComponent<br/>input/output signals"]
-    Dashboard --> RotationSelector["RotationSelectorComponent<br/>output<string>"]
-    Dashboard --> MatrixDisplay["MatrixDisplayComponent<br/>input<number[][]>"]
-    Dashboard --> StatsPanel["StatsPanelComponent<br/>input<StatsResponse>"]
-    
-    MatrixInput --> QRService["qrResource<br/>httpResource<QRResponse>"]
-    QRService --> GoAPI["API Go<br/>POST /api/v1/qr-factorization"]
-    GoAPI --> NodeAPI["API Node.js<br/>POST /api/v1/stats"]
-    
-    AuthService --> AuthInterceptor["authInterceptor<br/>HttpInterceptorFn"]
-    AuthInterceptor --> GoAPI
-    
+    App["gacc-root · Standalone"]
+    App --> Router["RouterOutlet · Lazy Loading"]
+
+    Router --> Login["/login · PUBLICO<br/>LoginPage · Smart"]
+    Router --> Overview["/overview · PRIVADO<br/>OverviewPage · Smart"]
+    Router --> Input["/input · PRIVADO<br/>InputPage · Smart"]
+    Router --> Results["/results · PRIVADO<br/>ResultsPage · Smart"]
+
+    subgraph Auth["Auth Layer"]
+        AuthGuard["authGuard · CanActivateFn"]
+        AuthService["AuthService · signals"]
+        AuthInterceptor["authInterceptor · HttpInterceptorFn"]
+    end
+
+    subgraph Dumb["Presentational Components"]
+        RotationSelector["RotationSelector"]
+        MatrixDisplay["MatrixDisplay"]
+        StatsPanel["StatsPanel"]
+        LoadingSpinner["LoadingSpinner"]
+        ErrorAlert["ErrorAlert"]
+    end
+
+    AuthGuard -.->|protege| Overview
+    AuthGuard -.->|protege| Input
+    AuthGuard -.->|protege| Results
+
+    Input --> RotationSelector
+    Results --> MatrixDisplay
+    Results --> StatsPanel
+
+    Input --> QrResource["httpResource"]
+    QrResource --> GoAPI["Go API · :3001"]
+    GoAPI --> NodeAPI["Node API · :3002"]
+
     style App fill:#1a1a2e,stroke:#1e88e5,color:#e0e0e0
-    style Dashboard fill:#0d2137,stroke:#26a69a,color:#e0e0e0
-    style AuthService fill:#0d2137,stroke:#7c4dff,color:#e0e0e0
+    style Auth fill:#0d2137,stroke:#ff9800,color:#e0e0e0
+    style Dumb fill:#16213e,stroke:#7c4dff,color:#e0e0e0
     style GoAPI fill:#0d2137,stroke:#ef5350,color:#e0e0e0
 ```
 
-### Flujo de Datos (Sequence)
-
-```mermaid
-sequenceDiagram
-    actor User as Usuario
-    participant Dashboard as DashboardComponent
-    participant Auth as AuthService
-    participant QR as qrResource (httpResource)
-    participant GoAPI as API Go
-    participant NodeAPI as API Node.js
-    
-    User->>Dashboard: Ingresa matriz + selecciona rotación
-    Dashboard->>QR: POST { matrix, rotation }
-    QR->>Auth: Obtener token JWT
-    Auth-->>QR: Bearer <token>
-    QR->>GoAPI: POST /api/v1/qr-factorization<br/>Authorization: Bearer <token>
-    GoAPI->>GoAPI: Rotar + Factorizar QR
-    GoAPI->>NodeAPI: POST /api/v1/stats<br/>[Q, R, rotated]
-    NodeAPI-->>GoAPI: { max, min, avg, sum, diagonals }
-    GoAPI-->>QR: { original, rotated, Q, R, stats }
-    QR-->>Dashboard: value() actualizado automáticamente
-    Dashboard->>MatrixDisplay: [data]="qrResource.value().Q"
-    Dashboard->>StatsPanel: [stats]="qrResource.value().stats"
-    Dashboard-->>User: UI actualizada con isLoading/hasValue/error
-```
-
-### Pantallas Principales
-
-1. **Login**: Autenticación JWT
-2. **Dashboard**: Ingreso de matriz + selector de rotación
-3. **Resultados**: Visualización de Q, R, rotated y estadísticas
-
----
-
-## 2. Dependencias
-
-### Production
-
-| Librería | Versión | Justificación |
-|----------|---------|---------------|
-| `@angular/core` | ^21.0.0 | Framework principal. Signals, httpResource, standalone components |
-| `@angular/common` | ^21.0.0 | Directivas comunes, NgOptimizedImage |
-| `@angular/router` | ^21.0.0 | Routing lazy-loaded |
-| `@angular/material` | ^21.0.0 | Componentes Material Design accesibles |
-| `@angular/cdk` | ^21.0.0 | Component Dev Kit (overlays, a11y, drag-drop) |
-| `@angular/forms` | ^21.0.0 | Signal Forms para formularios reactivos |
-
-### Dev
-
-| Librería | Versión | Justificación |
-|----------|---------|---------------|
-| `typescript` | ^6.0.3 | Última versión |
-| `@angular/cli` | ^21.0.0 | CLI para scaffolding y build |
-| `sass` | ^1.86.0 | Compilador SCSS |
-
-**Nota**: No se necesita `axios`. Angular 21 usa `httpResource()` que es nativo y basado en signals.
-
----
-
-## 3. Estructura de Carpetas
-
-```
-apps/frontend/
-│
-├── public/
-│   └── favicon.ico
-│
-├── src/
-│   ├── index.html                        # HTML principal con Material fonts
-│   ├── main.ts                           # Bootstrap con appConfig
-│   ├── app.config.ts                     # Config providers (httpClient, router)
-│   │
-│   ├── app/
-│   │   ├── app.component.ts              # Componente raíz (standalone)
-│   │   ├── app.component.html
-│   │   ├── app.component.scss
-│   │   ├── app.routes.ts                 # Definición de rutas lazy-loaded
-│   │   │
-│   │   ├── core/
-│   │   │   ├── auth/
-│   │   │   │   ├── auth.service.ts       # Servicio de autenticación (signals)
-│   │   │   │   ├── auth.guard.ts         # Guard de rutas con JWT
-│   │   │   │   └── auth.interceptor.ts   # Interceptor HTTP para JWT
-│   │   │   └── models/
-│   │   │       ├── matrix.model.ts       # Interfaces Matrix, StatsResponse
-│   │   │       └── auth.model.ts         # Interfaces Auth
-│   │   │
-│   │   ├── features/
-│   │   │   ├── login/
-│   │   │   │   ├── login.component.ts    # Login con Signal Forms
-│   │   │   │   ├── login.component.html
-│   │   │   │   └── login.component.scss
-│   │   │   │
-│   │   │   └── dashboard/
-│   │   │       ├── dashboard.component.ts    # Dashboard principal
-│   │   │       ├── dashboard.component.html
-│   │   │       ├── dashboard.component.scss
-│   │   │       └── components/
-│   │   │           ├── matrix-input.component.ts      # Input de matriz dinámico
-│   │   │           ├── matrix-display.component.ts    # Tabla HTML de matriz
-│   │   │           ├── rotation-selector.component.ts # Selector de rotación
-│   │   │           └── stats-panel.component.ts       # Cards de estadísticas
-│   │   │
-│   │   └── shared/
-│   │       ├── components/
-│   │       │   ├── loading-spinner.component.ts
-│   │       │   └── error-alert.component.ts
-│   │       └── material.module.ts        # Imports de Material centralizados
-│   │
-│   ├── environments/
-│   │   ├── environment.ts                # Dev: localhost:3001
-│   │   └── environment.prod.ts           # Prod: URLs de producción
-│   │
-│   └── styles/
-│       ├── _variables.scss               # Variables SCSS globales
-│       ├── _mixins.scss                  # Mixins reutilizables
-│       ├── _theme.scss                   # Tema Angular Material
-│       └── styles.scss                   # Estilos globales
-│
-├── angular.json                          # Config Angular CLI
-├── package.json
-├── tsconfig.json
-├── tsconfig.app.json
-├── tsconfig.spec.json                    # Config TypeScript para tests
-├── vitest.config.ts                      # Config Vitest
-└── Dockerfile
-```
-
----
-
-## 4. Angular Material + CDK
-
-### Tema Personalizado (`_theme.scss`)
-
-```scss
-@use '@angular/material' as mat;
-
-$primary: mat.m3-define-palette(mat.$blue-palette, 600);
-$accent: mat.m3-define-palette(mat.$teal-palette, 400);
-$warn: mat.m3-define-palette(mat.$red-palette, 500);
-
-$theme: mat.m3-define-light-theme((
-  color: (
-    primary: $primary,
-    accent: $accent,
-    warn: $warn,
-  ),
-  typography: mat.m3-define-typography-config(),
-  density: 0,
-));
-
-@include mat.all-component-themes($theme);
-```
-
-### Variables SCSS (`_variables.scss`)
-
-```scss
-$primary: #1e88e5;
-$accent: #26a69a;
-$warn: #ef5350;
-$dark-bg: #1a1a2e;
-$surface: #16213e;
-$text-primary: #e0e0e0;
-$text-secondary: #b0b0b0;
-$border-radius: 8px;
-$transition: all 0.3s ease;
-```
-
-### Componentes Material a Usar
-
-| Componente | Selector | Uso |
-|-----------|----------|-----|
-| `MatCard` | `<mat-card>` | Contenedores de resultado |
-| `MatFormField` | `<mat-form-field>` | Inputs de formulario |
-| `MatInput` | `<input matInput>` | Campos de texto |
-| `MatSelect` | `<mat-select>` | Selector de rotación |
-| `MatButton` | `<button mat-button>` | Botones |
-| `MatIcon` | `<mat-icon>` | Íconos Material |
-| `MatToolbar` | `<mat-toolbar>` | Header/nav |
-| `MatProgressSpinner` | `<mat-spinner>` | Loading states |
-| `MatSnackBar` | Servicio | Notificaciones toast |
-| `MatTable` | `<mat-table>` | Visualización de matrices |
-| `MatGridList` | `<mat-grid-list>` | Layout de stats |
-| `MatTooltip` | `matTooltip` | Tooltips en íconos |
-
----
-
-## 5. Rutas (Lazy Loading)
+### Flujo de Navegacion
 
 ```mermaid
 graph LR
-    Root["/"] -->|redirectTo| Dashboard["/dashboard<br/>authGuard"]
-    Login["/login"] -->|login exitoso| Dashboard
-    Dashboard -->|logout| Login
-    
-    Login -.->|lazy load| LC["LoginComponent"]
-    Dashboard -.->|lazy load| DC["DashboardComponent"]
-    Fallback["/**"] -->|redirectTo| Dashboard
+    Root["/"] -->|redirectTo| Overview["/overview"]
+
+    Login["/login"] -->|"login exitoso"| Overview
+    Overview --> Input["/input"]
+    Input -->|"calculo exitoso"| Results["/results"]
+
+    Login -.->|lazy| LoginPage["LoginPage"]
+    Overview -.->|lazy + authGuard| OverviewPage["OverviewPage"]
+    Input -.->|lazy + authGuard| InputPage["InputPage"]
+    Results -.->|lazy + authGuard| ResultsPage["ResultsPage"]
+
+    Overview -->|logout| Login
+    Input -->|logout| Login
+    Results -->|logout| Login
 
     style Root fill:#0d2137,stroke:#1e88e5,color:#e0e0e0
-    style Dashboard fill:#0d2137,stroke:#4caf50,color:#e0e0e0
     style Login fill:#0d2137,stroke:#ff9800,color:#e0e0e0
-```
-
-```typescript
-// app.routes.ts
-import { Routes } from '@angular/router';
-import { authGuard } from './core/auth/auth.guard';
-
-export const routes: Routes = [
-  {
-    path: 'login',
-    loadComponent: () => import('./features/login/login.component')
-      .then(m => m.LoginComponent)
-  },
-  {
-    path: 'dashboard',
-    loadComponent: () => import('./features/dashboard/dashboard.component')
-      .then(m => m.DashboardComponent),
-    canActivate: [authGuard]
-  },
-  { path: '', redirectTo: '/dashboard', pathMatch: 'full' },
-  { path: '**', redirectTo: '/dashboard' }
-];
+    style Overview fill:#0d2137,stroke:#4caf50,color:#e0e0e0
+    style Input fill:#0d2137,stroke:#26a69a,color:#e0e0e0
+    style Results fill:#0d2137,stroke:#7c4dff,color:#e0e0e0
 ```
 
 ---
 
-## 6. Servicio de Autenticación (Signals)
+## 2. Arquitectura: Container / Presentational
 
-```typescript
-// auth.service.ts
-import { Injectable, signal, computed, inject } from '@angular/core';
-import { httpResource } from '@angular/common/http';
-import { Router } from '@angular/router';
-import { environment } from '../../environments/environment';
+### Separacion de Responsabilidades
 
-@Injectable({ providedIn: 'root' })
-export class AuthService {
-  private router = inject(Router);
-  
-  // Estado con signals
-  private _token = signal<string | null>(localStorage.getItem('token'));
-  
-  readonly token = this._token.asReadonly();
-  readonly isAuthenticated = computed(() => !!this._token());
-  
-  loginResource = httpResource<{ token: string; type: string; expiresIn: number }>(
-    () => undefined, // Solo se activa manualmente
-    { defaultValue: undefined }
-  );
+| Tipo | Responsabilidad | Componentes |
+|---|---|---|
+| **Smart (Container)** | Orquesta datos, servicios, estado, navegacion. Unicos que injectan dependencias. | `LoginPage`, `OverviewPage`, `InputPage`, `ResultsPage` |
+| **Dumb (Presentational)** | Reciben datos via `input()`, emiten eventos via `output()`. Sin dependencias de negocio. Altamente reutilizables y testeables. | `MatrixDisplay`, `StatsPanel`, `RotationSelector`, `LoadingSpinner`, `ErrorAlert` |
 
-  async login(username: string, password: string): Promise<void> {
-    const response = await fetch(`${environment.apiGoUrl}/api/v1/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password })
-    });
-    
-    if (!response.ok) throw new Error('Invalid credentials');
-    
-    const data = await response.json();
-    this._token.set(data.token);
-    localStorage.setItem('token', data.token);
-    this.router.navigate(['/dashboard']);
-  }
+### Estado Compartido
 
-  logout(): void {
-    this._token.set(null);
-    localStorage.removeItem('token');
-    this.router.navigate(['/login']);
-  }
-}
-```
+`FactorizationState` (servicio inyectable con signals) actua como puente entre `InputPage` y `ResultsPage`:
+
+1. `InputPage` recibe la respuesta de la API y la almacena en `FactorizationState`
+2. Navega a `/results`
+3. `ResultsPage` lee `FactorizationState.response()` para renderizar
+4. Si no hay datos, redirige a `/input`
 
 ---
 
-## 7. Interceptor HTTP JWT
+## 3. Diseno: Gallery Aesthetic
 
-```typescript
-// auth.interceptor.ts
-import { HttpInterceptorFn } from '@angular/common/http';
-import { inject } from '@angular/core';
-import { AuthService } from './auth.service';
+### Paleta de Colores
 
-export const authInterceptor: HttpInterceptorFn = (req, next) => {
-  const auth = inject(AuthService);
-  const token = auth.token();
-  
-  if (token) {
-    req = req.clone({
-      setHeaders: { Authorization: `Bearer ${token}` }
-    });
-  }
-  
-  return next(req);
-};
-```
+| Token | Hex | Uso |
+|---|---|---|
+| `canvas` | `#ffffff` | Tiles claros principales |
+| `canvas-parchment` | `#f5f5f7` | Alternancia de secciones |
+| `surface-dark` | `#272729` | Tiles oscuros, seccion stats |
+| `surface-black` | `#000000` | Global nav toolbar |
+| `primary` | `#0066cc` | Unico acento: links, CTAs, focus ring |
+| `primary-focus` | `#0071e3` | Outline de focus |
+| `primary-on-dark` | `#2997ff` | Links sobre superficies oscuras |
+| `ink` | `#1d1d1f` | Headlines, body text |
+| `ink-muted` | `#7a7a7a` | Texto secundario, disabled |
+| `on-dark` | `#ffffff` | Texto sobre superficies oscuras |
+| `on-dark-muted` | `#cccccc` | Texto secundario sobre oscuro |
+| `hairline` | `#e0e0e0` | Borde 1px en cards |
 
----
+### Tipografia
 
-## 8. httpResource para APIs
+| Token | Size | Weight | Line Height | Letter Spacing |
+|---|---|---|---|---|
+| Hero Display | 56px | 600 | 1.07 | -0.28px |
+| Display LG | 40px | 600 | 1.10 | 0 |
+| Display MD | 34px | 600 | 1.47 | -0.374px |
+| Body | 17px | 400 | 1.47 | -0.374px |
+| Caption | 14px | 400 | 1.43 | -0.01em |
+| Nav Link | 12px | 400 | 1.0 | -0.12px |
 
-```typescript
-// dashboard.component.ts
-import { Component, signal, inject } from '@angular/core';
-import { httpResource } from '@angular/common/http';
-import { environment } from '../../environments/environment';
+**Font**: `Inter, system-ui, -apple-system, sans-serif`
 
-@Component({
-  selector: 'app-dashboard',
-  standalone: true,
-  imports: [/* Material components */],
-  templateUrl: './dashboard.component.html',
-  styleUrls: ['./dashboard.component.scss'],
-  changeDetection: ChangeDetectionStrategy.OnPush
-})
-export class DashboardComponent {
-  private apiUrl = environment.apiGoUrl;
-  
-  matrix = signal<number[][]>([[1, 2], [3, 4], [5, 6]]);
-  rotation = signal<string>('none');
-  
-  // httpResource se activa cuando cambian las señales de dependencia
-  qrResource = httpResource<QRResponse>(() => ({
-    url: `${this.apiUrl}/api/v1/qr-factorization`,
-    method: 'POST',
-    body: {
-      matrix: this.matrix(),
-      rotation: this.rotation()
-    }
-  }));
+### Principios del Diseno
 
-  setRotation(type: string): void {
-    this.rotation.set(type);
-  }
-
-  updateMatrix(newMatrix: number[][]): void {
-    this.matrix.set(newMatrix);
-  }
-
-  calculate(): void {
-    this.qrResource.reload();
-  }
-}
-```
+- **Un solo acento**: Action Blue (#0066cc) para todo elemento interactivo
+- **Sin gradientes decorativos**: atmosfera por fotografia y contraste, no CSS
+- **Sin sombras en UI**: cards, botones y texto son flat. El cambio de color entre tiles es el divisor
+- **Tiles full-bleed**: alternan `#ffffff` → `#f5f5f7` → `#272729`
+- **Pill CTAs**: border-radius 9999px en todos los botones de accion
+- **Global Nav**: barra negra 44px, links 12px
+- **Sub-Nav**: frosted glass (blur 20px), 52px, fondo #f5f5f7 al 80%
 
 ---
 
-## 9. Componentes Principales
+## 4. Componentes de Angular Material
 
-### 9.1 LoginComponent (Signal Forms)
+### Catalogo por Categoria
 
-```typescript
-import { Component, inject, ChangeDetectionStrategy } from '@angular/core';
-import { FormGroup, FormControl, Validators, ReactiveFormsModule } from '@angular/forms';
-import { AuthService } from '../../core/auth/auth.service';
+**Form Controls**: `MatFormField` (outline), `MatInput`, `MatLabel`, `MatError`, `MatSelect`, `MatOption`, `MatHint`, `MatPrefix`, `MatSuffix`
 
-@Component({
-  selector: 'app-login',
-  standalone: true,
-  imports: [ReactiveFormsModule, MatCardModule, MatFormFieldModule, MatInputModule, MatButtonModule],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { 'class': 'login-container' },
-  template: `
-    <mat-card class="login-card">
-      <mat-card-header>
-        <mat-card-title>Coding Challenge QR</mat-card-title>
-        <mat-card-subtitle>División TI - Interseguro</mat-card-subtitle>
-      </mat-card-header>
-      
-      <mat-card-content>
-        <form [formGroup]="form" (ngSubmit)="onSubmit()">
-          <mat-form-field appearance="outline" class="full-width">
-            <mat-label>Username</mat-label>
-            <input matInput formControlName="username" placeholder="admin" />
-            @if (form.get('username')?.hasError('required')) {
-              <mat-error>Username is required</mat-error>
-            }
-          </mat-form-field>
-          
-          <mat-form-field appearance="outline" class="full-width">
-            <mat-label>Password</mat-label>
-            <input matInput type="password" formControlName="password" />
-            @if (form.get('password')?.hasError('required')) {
-              <mat-error>Password is required</mat-error>
-            }
-            @if (form.get('password')?.hasError('minlength')) {
-              <mat-error>Minimum 6 characters</mat-error>
-            }
-          </mat-form-field>
-          
-          <button mat-flat-button color="primary" type="submit" [disabled]="form.invalid">
-            Login
-          </button>
-        </form>
-      </mat-card-content>
-    </mat-card>
-  `,
-  styles: `
-    :host {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      min-height: 100vh;
-      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-    }
-    .login-card { width: 400px; padding: 24px; }
-    .full-width { width: 100%; margin-bottom: 16px; }
-  `
-})
-export class LoginComponent {
-  private auth = inject(AuthService);
-  
-  form = new FormGroup({
-    username: new FormControl('', [Validators.required]),
-    password: new FormControl('', [Validators.required, Validators.minLength(6)])
-  });
+**Navigation**: `MatToolbar` (global nav + sub-nav)
 
-  async onSubmit(): Promise<void> {
-    if (this.form.valid) {
-      try {
-        await this.auth.login(this.form.value.username!, this.form.value.password!);
-      } catch {
-        // Error mostrado por snackbar
-      }
-    }
-  }
-}
-```
+**Buttons**: `MatButton` (flat, stroked), `MatIconButton`, `MatIcon`
 
-### 9.2 RotationSelectorComponent
+**Indicators**: `MatProgressSpinner` (loading states)
 
-```typescript
-import { Component, output, ChangeDetectionStrategy } from '@angular/core';
+**Layout**: `MatCard` (header, title, subtitle, content, actions), `MatDivider`
 
-@Component({
-  selector: 'app-rotation-selector',
-  standalone: true,
-  imports: [MatSelectModule, MatFormFieldModule, MatOptionModule],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { 'class': 'rotation-selector' },
-  template: `
-    <mat-form-field appearance="outline">
-      <mat-label>Rotation Type</mat-label>
-      <mat-select [value]="'none'" (selectionChange)="rotationChange.emit($event.value)">
-        <mat-option value="none">No rotation</mat-option>
-        <mat-option value="clockwise_90">90° clockwise</mat-option>
-        <mat-option value="clockwise_180">180°</mat-option>
-        <mat-option value="clockwise_270">270° clockwise (90° counter)</mat-option>
-        <mat-option value="transpose">Transpose</mat-option>
-        <mat-option value="horizontal_flip">Horizontal flip</mat-option>
-        <mat-option value="vertical_flip">Vertical flip</mat-option>
-      </mat-select>
-    </mat-form-field>
-  `
-})
-export class RotationSelectorComponent {
-  rotationChange = output<string>();
-}
-```
+**Popups**: `MatSnackBar` (notificaciones), `MatTooltip`
 
-### 9.3 MatrixDisplayComponent
+### Uso por Pantalla
 
-```typescript
-import { Component, input, ChangeDetectionStrategy } from '@angular/core';
-
-@Component({
-  selector: 'app-matrix-display',
-  standalone: true,
-  imports: [MatCardModule, MatTableModule],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
-    @if (title()) {
-      <h3>{{ title() }}</h3>
-    }
-    <table mat-table [dataSource]="data()">
-      @for (row of data(); track $index; let rowIdx = $index) {
-        <tr>
-          @for (value of row; track $index) {
-            <td [class.highlight]="highlight()">{{ value | number:'1.0-4' }}</td>
-          }
-        </tr>
-      }
-    </table>
-  `,
-  styles: `
-    table { border-collapse: collapse; margin: 8px 0; }
-    td { padding: 8px 12px; border: 1px solid rgba(255,255,255,0.12); text-align: center; }
-  `
-})
-export class MatrixDisplayComponent {
-  data = input.required<number[][]>();
-  title = input<string>();
-  highlight = input(false);
-}
-```
-
-### 9.4 StatsPanelComponent
-
-```typescript
-import { Component, input, computed, ChangeDetectionStrategy } from '@angular/core';
-import { MatCardModule } from '@angular/material/card';
-import { MatGridListModule } from '@angular/material/grid-list';
-
-@Component({
-  selector: 'app-stats-panel',
-  standalone: true,
-  imports: [MatCardModule, MatGridListModule],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
-    <h3>Estadísticas</h3>
-    <div class="stats-grid">
-      <mat-card class="stat-card">
-        <mat-card-header><mat-card-title>Maximum</mat-card-title></mat-card-header>
-        <mat-card-content>{{ stats()?.max | number:'1.0-4' }}</mat-card-content>
-      </mat-card>
-      
-      <mat-card class="stat-card">
-        <mat-card-header><mat-card-title>Minimum</mat-card-title></mat-card-header>
-        <mat-card-content>{{ stats()?.min | number:'1.0-4' }}</mat-card-content>
-      </mat-card>
-      
-      <mat-card class="stat-card">
-        <mat-card-header><mat-card-title>Average</mat-card-title></mat-card-header>
-        <mat-card-content>{{ stats()?.average | number:'1.0-4' }}</mat-card-content>
-      </mat-card>
-      
-      <mat-card class="stat-card">
-        <mat-card-header><mat-card-title>Sum</mat-card-title></mat-card-header>
-        <mat-card-content>{{ stats()?.sum | number:'1.0-4' }}</mat-card-content>
-      </mat-card>
-    </div>
-    
-    @if (stats()?.diagonalMatrices?.count) {
-      <mat-card class="diagonal-card">
-        <mat-card-header>
-          <mat-card-title>Diagonal Matrices: {{ stats()?.diagonalMatrices?.count }}</mat-card-title>
-        </mat-card-header>
-        <mat-card-content>
-          @for (matrix of stats()?.diagonalMatrices?.matrices; track matrix.matrixIndex) {
-            <p>{{ matrix.name }} - {{ matrix.dimensions }}</p>
-          }
-        </mat-card-content>
-      </mat-card>
-    }
-  `,
-  styles: `
-    .stats-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-      gap: 16px;
-      margin: 16px 0;
-    }
-    .stat-card {
-      text-align: center;
-      background: rgba(255,255,255,0.05);
-    }
-    .stat-card mat-card-content {
-      font-size: 1.5rem;
-      font-weight: 500;
-      padding: 16px;
-    }
-    .diagonal-card { margin-top: 16px; }
-  `
-})
-export class StatsPanelComponent {
-  stats = input<StatsResponse | null | undefined>();
-}
-```
+| Pantalla | Material Components |
+|---|---|
+| **Login** | `MatCard`, `MatFormField` (outline), `MatLabel`, `MatInput`, `MatIcon` (prefix), `MatError`, `MatButton` (flat) |
+| **Overview** | `MatToolbar`, `MatIconButton`, `MatIcon`, `MatCard` |
+| **Input** | `MatToolbar`, `MatFormField`, `MatSelect`, `MatOption`, `MatLabel`, `MatProgressSpinner`, `MatSnackBar` |
+| **Results** | `MatToolbar`, `MatCard`, `MatIcon`, `MatButton` (stroked) |
 
 ---
 
-## 10. Dashboard Completo
+## 5. Metodologia BEM
 
-```typescript
-@Component({
-  selector: 'app-dashboard',
-  standalone: true,
-  imports: [
-    MatToolbarModule, MatButtonModule, MatIconModule, MatCardModule,
-    MatProgressSpinnerModule, MatDividerModule,
-    MatrixInputComponent, RotationSelectorComponent,
-    MatrixDisplayComponent, StatsPanelComponent,
-    LoadingSpinnerComponent, ErrorAlertComponent
-  ],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
-    <mat-toolbar color="primary">
-      <span>Coding Challenge QR</span>
-      <span class="spacer"></span>
-      <button mat-icon-button (click)="auth.logout()">
-        <mat-icon>logout</mat-icon>
-      </button>
-    </mat-toolbar>
-    
-    <div class="dashboard-content">
-      <mat-card>
-        <mat-card-header>
-          <mat-card-title>Matrix Input</mat-card-title>
-        </mat-card-header>
-        <mat-card-content>
-          <app-matrix-input (matrixChange)="matrix.set($event)" />
-          <app-rotation-selector (rotationChange)="rotation.set($event)" />
-          <button mat-flat-button color="primary" (click)="calculate()">
-            Calcular Factorización QR
-          </button>
-        </mat-card-content>
-      </mat-card>
-      
-      @if (qrResource.isLoading()) {
-        <app-loading-spinner />
-      }
-      
-      @if (qrResource.error(); as error) {
-        <app-error-alert [error]="error" (retry)="qrResource.reload()" />
-      }
-      
-      @if (qrResource.hasValue()) {
-        <div class="results">
-          <app-matrix-display [data]="qrResource.value().original" title="Original Matrix" />
-          <app-matrix-display [data]="qrResource.value().rotated" title="Rotated Matrix" [highlight]="true" />
-          <app-matrix-display [data]="qrResource.value().Q" title="Matrix Q" />
-          <app-matrix-display [data]="qrResource.value().R" title="Matrix R" />
-          <app-stats-panel [stats]="qrResource.value().stats" />
-        </div>
-      }
-    </div>
-  `
-})
-export class DashboardComponent {
-  auth = inject(AuthService);
-  
-  matrix = signal<number[][]>([[1, 2], [3, 4], [5, 6]]);
-  rotation = signal<string>('none');
-  
-  qrResource = httpResource<QRResponse>(() => ({
-    url: `${environment.apiGoUrl}/api/v1/qr-factorization`,
-    method: 'POST',
-    body: { matrix: this.matrix(), rotation: this.rotation() }
-  }));
-
-  calculate(): void {
-    this.qrResource.reload();
-  }
-}
-```
-
----
-
-## 11. Tests con Vitest
-
-```typescript
-// matrix-display.component.test.ts
-import { describe, it, expect, vi } from 'vitest';
-import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { MatrixDisplayComponent } from './matrix-display.component';
-
-describe('MatrixDisplayComponent', () => {
-  let fixture: ComponentFixture<MatrixDisplayComponent>;
-  let component: MatrixDisplayComponent;
-
-  beforeEach(async () => {
-    await TestBed.configureTestingModule({
-      imports: [MatrixDisplayComponent]
-    }).compileComponents();
-
-    fixture = TestBed.createComponent(MatrixDisplayComponent);
-    component = fixture.componentInstance;
-  });
-
-  it('should display matrix data', () => {
-    fixture.componentRef.setInput('data', [[1, 2], [3, 4]]);
-    fixture.detectChanges();
-    
-    const cells = fixture.nativeElement.querySelectorAll('td');
-    expect(cells.length).toBe(4);
-    expect(cells[0].textContent.trim()).toBe('1');
-  });
-
-  it('should show title when provided', () => {
-    fixture.componentRef.setInput('data', [[1]]);
-    fixture.componentRef.setInput('title', 'Test Matrix');
-    fixture.detectChanges();
-    
-    const title = fixture.nativeElement.querySelector('h3');
-    expect(title.textContent).toBe('Test Matrix');
-  });
-});
-```
-
-```typescript
-// vitest.config.ts
-import { defineConfig } from 'vitest/config';
-
-export default defineConfig({
-  test: {
-    globals: true,
-    environment: 'jsdom',
-    include: ['src/**/*.test.ts'],
-    coverage: {
-      provider: 'v8',
-      reporter: ['text', 'lcov'],
-      include: ['src/app/**/*.ts'],
-      exclude: ['src/app/**/*.test.ts']
-    }
-  }
-});
-```
-
----
-
-## 12. Configuración SCSS
-
-### `styles.scss`
+Todas las clases SCSS siguen la convencion **Block__Element--Modifier**:
 
 ```scss
-@use '@angular/material' as mat;
-@use 'variables' as *;
-@use 'mixins';
-@use 'theme';
+.login { }                  // Block
+.login__card { }            // Block__Element
+.login--loading { }         // Block--Modifier
+.login__submit { }          // Block__Element
+```
 
-// Reset y estilos base
-*, *::before, *::after {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
+### SCSS por Componente
 
-html, body {
-  height: 100%;
-  background-color: $dark-bg;
-  color: $text-primary;
-  font-family: 'Roboto', sans-serif;
-}
+Cada componente tiene su archivo `.scss` con anidacion BEM via `&__element` y `&--modifier`. Las variables globales (colores, tipografia, espaciado) se definen en `src/styles/_variables.scss` y se acceden via `@use 'variables' as *` con `stylePreprocessorOptions.includePaths` configurado en `angular.json`.
 
-.dashboard-content {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 24px;
-}
+---
 
-.results {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 16px;
-  margin-top: 24px;
-}
+## 6. Estructura de Carpetas
 
-.spacer {
-  flex: 1 1 auto;
-}
+```
+apps/frontend/src/app/
+├── core/
+│   ├── auth/
+│   │   ├── auth.service.ts        # signals: token, isAuthenticated
+│   │   ├── auth.guard.ts          # CanActivateFn funcional
+│   │   └── auth.interceptor.ts    # HttpInterceptorFn
+│   ├── http/
+│   │   └── api-url.token.ts       # InjectionToken<string>
+│   ├── models/
+│   │   ├── matrix.model.ts        # FactorizationResponse, StatsResponse
+│   │   ├── auth.model.ts          # LoginRequest, AuthResponse
+│   │   └── rotation.types.ts      # RotationType + ROTATION_OPTIONS
+│   └── state/
+│       └── factorization.state.ts # Signal compartido entre Input/Results
+│
+├── features/
+│   ├── login/
+│   │   └── login-page.component.ts    # Smart · PUBLICO
+│   ├── overview/
+│   │   └── overview-page.component.ts # Smart · PRIVADO
+│   ├── input/
+│   │   └── input-page.component.ts    # Smart · PRIVADO
+│   └── results/
+│       ├── results-page.component.ts  # Smart · PRIVADO
+│       └── components/
+│           ├── matrix-display/    # Dumb
+│           └── stats-panel/       # Dumb
+│
+└── shared/
+    └── components/
+        ├── rotation-selector/     # Dumb
+        ├── loading-spinner/       # Dumb
+        └── error-alert/           # Dumb
 ```
 
 ---
 
-## 13. Variables de Entorno
+## 7. Rutas y Seguridad
 
-```typescript
-// environment.ts
-export const environment = {
-  production: false,
-  apiGoUrl: 'http://localhost:3001'
-};
+### Definicion
 
-// environment.prod.ts
-export const environment = {
-  production: true,
-  apiGoUrl: 'https://api-go.produccion.com'
-};
+```mermaid
+graph LR
+    Login["/login"] --> Overview
+    Overview["/overview · authGuard"] --> Input
+    Input["/input · authGuard"] --> Results
+    Results["/results · authGuard"]
+
+    Login -.-> LoginPage
+    Overview -.-> OverviewPage
+    Input -.-> InputPage
+    Results -.-> ResultsPage
 ```
+
+### AuthGuard
+
+Functional guard (`CanActivateFn`) que verifica `AuthService.isAuthenticated()`. Si no hay token, redirige a `/login` via `router.createUrlTree(['/login'])`.
+
+### AuthInterceptor
+
+`HttpInterceptorFn` que agrega `Authorization: Bearer <token>` a todas las peticiones cuyo destino coincida con `API_URL`.
+
+### Lazy Loading
+
+Las 4 rutas cargan sus componentes bajo demanda con `loadComponent()`, reduciendo el bundle inicial.
 
 ---
 
-## 14. Docker (Angular)
+## 8. Tipos de Rotacion
 
-```dockerfile
-FROM node:20-alpine AS builder
-WORKDIR /app
-COPY package*.json ./
-RUN npm ci
-COPY . .
-RUN npm run build
+| Valor | Descripcion |
+|---|---|
+| `none` | Sin rotacion |
+| `clockwise_90` | 90° horario |
+| `clockwise_180` | 180° |
+| `clockwise_270` | 270° horario (90° antihorario) |
+| `transpose` | Transposicion |
+| `horizontal_flip` | Espejo horizontal |
+| `vertical_flip` | Espejo vertical |
 
-FROM nginx:alpine
-COPY nginx.conf /etc/nginx/conf.d/default.conf
-COPY --from=builder /app/dist/frontend/browser /usr/share/nginx/html
-EXPOSE 80
-CMD ["nginx", "-g", "daemon off;"]
-```
+El `RotationSelectorComponent` renderiza las 7 opciones en un `<mat-select>` con el tipo `RotationType`.
 
 ---
 
-## 15. Scripts package.json
+## 9. Dependencias
 
-```json
-{
-  "scripts": {
-    "start": "ng serve",
-    "build": "ng build",
-    "watch": "ng build --watch --configuration development",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage",
-    "lint": "ng lint"
-  }
-}
-```
+### Produccion
+
+| Libreria | Version | Proposito |
+|---|---|---|
+| `@angular/core` | ^21.2.0 | Signals, inject(), standalone, httpResource |
+| `@angular/router` | ^21.2.0 | Lazy loading, functional guards |
+| `@angular/material` | ^21.2.10 | Material 3 components |
+| `@angular/cdk` | ^21.2.10 | BreakpointObserver, a11y |
+| `@angular/forms` | ^21.2.0 | Reactive forms |
+
+### Desarrollo
+
+| Libreria | Version | Proposito |
+|---|---|---|
+| `typescript` | ~5.9.2 | Type checker |
+| `@angular/cli` | ^21.2.10 | Serve, build, generate |
+| `@angular/build` | ^21.2.10 | esbuild application builder |
+| `vitest` | ^4.0.8 | Test runner |
+| `@vitest/coverage-v8` | ^4.1.5 | Coverage |
+| `jsdom` | ^28.0.0 | DOM environment |
 
 ---
 
-**Documento versión**: 3.0  
-**Última actualización**: Junio 2024  
-**Framework**: Angular 21 + Material + CDK + SCSS + Vitest
+## 10. Mejores Practicas Angular 21
+
+- `standalone: true` en todos los componentes
+- `ChangeDetectionStrategy.OnPush` en todos los componentes
+- `inject()` en lugar de constructor DI
+- `input.required()` para props obligatorias
+- `output()` tipado estricto
+- `computed()` para valores derivados
+- `@if` / `@for` / `@switch` (nuevo control flow)
+- `loadComponent()` para lazy loading
+- Functional guards (`CanActivateFn`)
+- `httpResource` para API calls (cancelacion automatica)
+- `withInterceptors()` para JWT en HttpClient
+- `InjectionToken` para valores de configuracion
+- BEM en SCSS con `styleUrl`
+- `host` property en `@Component` para bindings del elemento raiz
+- `transform` en `input()` para coercion de tipos
+
+---
+
+## 11. Responsive Breakpoints
+
+| Nombre | Width | Cambios |
+|---|---|---|
+| Phone | ≤ 640px | Single column, tiles padding 48px |
+| Tablet | ≤ 834px | Nav links ocultos |
+| Desktop | ≤ 1068px | Grid 3-col a 2-col |
+| Wide | ≤ 1440px | Content lock |
+
+---
+
+## 12. Docker
+
+Imagen multi-stage con NGINX para servir el build de produccion. El `nginx.conf` incluye reglas SPA (`try_files $uri /index.html`) y compresion gzip.
+
+---
+
+*Documento version 5.1 — Mayo 2026*

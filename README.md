@@ -1,6 +1,6 @@
-# Coding Challenge - Interseguro
+# Coding Challenge — Interseguro
 
-Solucion tecnica del coding challenge de la Division TI de Interseguro. Sistema distribuido con dos APIs RESTful y un frontend Angular para rotacion de matrices, factorizacion QR y calculo de estadisticas.
+Solucion tecnica del coding challenge de la Division TI de Interseguro. Sistema distribuido con dos APIs RESTful y un frontend Angular que implementa **rotacion de matrices**, **factorizacion QR** (Gram-Schmidt Modificado) y **calculo de estadisticas globales** con deteccion de matrices diagonales.
 
 ## Arquitectura
 
@@ -35,123 +35,144 @@ graph TD
     style NodeAPI fill:#0d2137,stroke:#ef5350,color:#e0e0e0
 ```
 
-## Stack
+## Stack Tecnologico
 
-| Componente | Go API | Node API |
-|---|---|---|
-| Lenguaje | Go 1.25 | TypeScript 6 |
-| Framework | Fiber v3 | Express 5.2 |
-| Auth | golang-jwt/v5 | jsonwebtoken |
-| Validacion | Manual | Zod 4 |
-| Matematico | gonum v0.17 | N/A |
-| HTTP Client | resty/v2 | N/A |
-| Swagger | Embed HTML | Hardcoded Spec |
-| Testing | go test | Vitest 4 |
-| Coverage | 93.4% | 100% / 95.7% |
-
-## Inicio Rapido
-
-```bash
-# Docker Compose (recomendado)
-make up
-
-# Desarrollo local
-cd apps/go-api && JWT_SECRET=supersecret123 go run ./cmd/api
-cd apps/node-api && npm run dev
-
-# Tests
-make test-all
-```
+| Componente | Go API | Node API | Frontend |
+|---|---|---|---|
+| Lenguaje | Go 1.25 | TypeScript 5.9 | TypeScript 5.9 |
+| Framework | Fiber v3 | Express 5.2 | Angular 21.2 |
+| UI | — | — | Angular Material 3 + CDK |
+| Estilos | — | — | SCSS · BEM · Gallery Aesthetic |
+| Auth | golang-jwt/v5 | jsonwebtoken | AuthService + HttpInterceptorFn |
+| Validacion | Manual | Zod 4 | Reactive Forms |
+| Matematico | gonum v0.17 | — | — |
+| QR Algorithm | Gram-Schmidt Modified | — | — |
+| HTTP Client | resty/v2 | — | httpResource (signal-based) |
+| Stats Engine | — | Custom service | — |
+| Swagger | Embed HTML | Hardcoded Spec | — |
+| Testing | go test | Vitest 4 | Vitest (via Angular builder) |
+| Coverage | 93.4% | 100% / 95.7% | 100% / 100% |
 
 ## Endpoints
 
 ### Go API (puerto 3001)
 
-| Metodo | Ruta | Auth |
-|---|---|---|
-| GET | `/health` | No |
-| GET | `/swagger` | No |
-| POST | `/api/v1/auth/login` | No |
-| POST | `/api/v1/qr-factorization` | JWT |
+| Metodo | Ruta | Auth | Descripcion |
+|---|---|---|---|
+| GET | `/health` | No | Health check |
+| GET | `/swagger` | No | Swagger UI |
+| POST | `/api/v1/auth/login` | No | Login · JWT |
+| POST | `/api/v1/qr-factorization` | JWT | Rotacion + QR + Stats |
 
 ### Node API (puerto 3002)
 
-| Metodo | Ruta | Auth |
+| Metodo | Ruta | Auth | Descripcion |
+|---|---|---|---|
+| GET | `/health` | No | Health check |
+| GET | `/api-docs` | No | Swagger UI |
+| POST | `/api/v1/auth/login` | No | Login · JWT |
+| POST | `/api/v1/stats` | JWT | Estadisticas de matrices |
+
+### Frontend (puerto 80)
+
+| Ruta | Acceso | Pantalla |
 |---|---|---|
-| GET | `/health` | No |
-| GET | `/api-docs` | No |
-| POST | `/api/v1/auth/login` | No |
-| POST | `/api/v1/stats` | JWT |
+| `/login` | Publico | Login con credenciales |
+| `/overview` | Privado | Vista general + accesos rapidos |
+| `/input` | Privado | Formulario de matriz + rotacion |
+| `/results` | Privado | Resultados Q, R, rotated + stats |
+
+## Rotacion de Matrices
+
+Siete tipos de rotacion soportados, aplicados antes de la factorizacion QR:
+
+| Valor | Descripcion |
+|---|---|
+| `none` | Sin rotacion |
+| `clockwise_90` | 90° en sentido horario |
+| `clockwise_180` | 180° |
+| `clockwise_270` | 270° horario (90° antihorario) |
+| `transpose` | Transposicion (filas ↔ columnas) |
+| `horizontal_flip` | Espejo horizontal |
+| `vertical_flip` | Espejo vertical |
+
+## Algoritmo QR
+
+La factorizacion QR se realiza mediante el metodo de **Gram-Schmidt Modificado** sobre la matriz rotada. Para una matriz A de dimensiones m×n (m ≥ n):
+
+- **Q**: matriz m×n con columnas ortonormales
+- **R**: matriz n×n triangular superior
+
+La descomposicion satisface A = QR. Se valida que la matriz no sea singular (tolerancia 1×10⁻¹²). En caso de matrices rango-deficientes, se retorna error 422.
+
+## Estadisticas
+
+La Node API calcula sobre las 3 matrices recibidas (Q, R, rotated):
+
+| Metrica | Descripcion |
+|---|---|
+| Max | Valor maximo global |
+| Min | Valor minimo global |
+| Average | Promedio de todos los elementos |
+| Sum | Suma total |
+| Total Elements | Cantidad de elementos |
+| Diagonal Matrices | Matrices cuadradas con ceros fuera de la diagonal (tolerancia 1×10⁻¹⁰) |
 
 ## CI/CD
 
-### Continuous Integration
-
 ```mermaid
 graph LR
-    Push["Push / PR"] --> LintGo["Lint Go<br/>go vet"]
-    Push --> LintNode["Lint Node<br/>tsc --noEmit"]
+    Push["Push / PR"] --> LintGo["Lint Go · go vet"]
+    Push --> LintNode["Lint Node · tsc --noEmit"]
 
-    LintGo --> TestGo["Test Go<br/>go test · coverage"]
-    LintNode --> TestNode["Test Node<br/>vitest · coverage"]
+    LintGo --> TestGo["Test Go · coverage"]
+    LintNode --> TestNode["Test Node · vitest · coverage"]
 
-    TestGo --> Build["Build Docker<br/>docker compose build"]
+    TestGo --> Build["Build Docker"]
     TestNode --> Build
+    TestFrontend["Test Frontend · vitest"] --> Build
 
-    Build --> Report["Coverage Report<br/>PR Summary"]
+    Build --> Report["Coverage Report · PR Summary"]
 
     style Push fill:#1a1a2e,stroke:#1e88e5,color:#e0e0e0
     style Build fill:#0d2137,stroke:#4caf50,color:#e0e0e0
-    style Report fill:#0d2137,stroke:#26a69a,color:#e0e0e0
 ```
 
-El pipeline (`ci.yml`) ejecuta:
-1. **Lint**: `go vet` (Go) + `tsc --noEmit` (Node)
-2. **Test**: `go test` con coverage + `vitest` con coverage
-3. **Build**: `docker compose build` de ambas imagenes
-4. **Report**: Summary de cobertura en PR
-
-### Continuous Deployment (a definir)
-
-Opciones evaluadas para deploy cloud:
-
-| Plataforma | Go API | Node API | Costo | Ideal para |
-|---|---|---|---|---|
-| **Fly.io** | Nativo | Nativo | ~$5/mes | Low-ops, global |
-| **Railway** | Nativo | Nativo | ~$5/mes | DX rapido, simple |
-| **Render** | Nativo | Nativo | Gratis (limitado) | Prototipos |
-| **AWS ECS** | Docker | Docker | Variable | Enterprise |
-
-**Recomendacion**: **Fly.io** para ambas APIs. Soporte nativo Go + Node, deploy con `fly deploy`, escalado automatico, y balanceo global. Railway como alternativa si se prefiere simplicidad de UI.
-
-El CD se implementara en fase final una vez definida la plataforma.
+El pipeline CI ejecuta: lint, tests con coverage, build de imagenes Docker, y reporte de cobertura en PRs.
 
 ## Estructura del Monorepo
 
 ```
-apps/
-  go-api/          # Go API · Fiber v3 · QR · Rotacion
-  node-api/        # Node API · Express 5 · Stats · Zod
-  frontend/        # Angular 21 · pendiente
-docs/
-  architecture.md  # Arquitectura completa + Mermaid
-  specs/           # Especificaciones por servicio
-  CODING_CONVENTIONS.md
-.github/
-  workflows/
-    ci.yml         # CI pipeline
-docker-compose.yml
-Makefile
+coding-challenge/
+├── apps/
+│   ├── go-api/          # Go API · Fiber v3 · QR · Rotacion
+│   ├── node-api/        # Node API · Express 5 · Stats · Zod
+│   └── frontend/        # Angular 21 · Material 3 · Gallery Aesthetic
+├── docs/
+│   ├── architecture.md
+│   ├── CODING_CONVENTIONS.md
+│   └── specs/
+├── .github/workflows/ci.yml
+├── docker-compose.yml
+└── Makefile
 ```
 
-## Comandos
+## Despliegue Local
 
 ```bash
-make help        # Lista todos los comandos
-make up          # Iniciar todo con Docker
-make down        # Detener todo
-make test-all    # Tests Go + Node
-make test-go     # Solo Go (coverage)
-make test-node   # Solo Node (coverage)
-make logs        # Logs de ambos servicios
+make up          # Construye e inicia los 3 servicios con Docker Compose
+make down        # Detiene y remueve los contenedores
+make test-all    # Ejecuta todos los tests
+make logs        # Sigue los logs de todos los servicios
 ```
+
+Servicios despues de `make up`:
+- **Frontend**: http://localhost
+- **Go API**: http://localhost:3001
+- **Node API**: http://localhost:3002
+- **Swagger Go**: http://localhost:3001/swagger
+- **Swagger Node**: http://localhost:3002/api-docs
+
+---
+
+*Proyecto elaborado por **Gustavo Caqui** para el Coding Challenge de la Division TI — Interseguro. Mayo 2026.*

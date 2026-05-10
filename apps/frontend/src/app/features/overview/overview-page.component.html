@@ -1,0 +1,145 @@
+<div class="overview">
+  <nav class="overview__global-nav">
+    <span class="overview__global-nav-brand">Coding Challenge QR</span>
+    <div class="overview__global-nav-links">
+      <a class="overview__global-nav-link overview__global-nav-link--active"
+         routerLink="/overview">Overview</a>
+      <a class="overview__global-nav-link"
+         routerLink="/input">Input</a>
+      <a class="overview__global-nav-link"
+         routerLink="/results">Results</a>
+    </div>
+    <div class="overview__global-nav-actions">
+      <button class="overview__logout-btn" mat-icon-button
+              (click)="auth.logout()" matTooltip="Sign out">
+        <mat-icon class="overview__logout-icon">logout</mat-icon>
+      </button>
+    </div>
+  </nav>
+
+  <nav class="overview__sub-nav">
+    <span class="overview__sub-nav-title">Overview</span>
+    <div class="overview__sub-nav-actions">
+      <a class="overview__sub-nav-link" routerLink="/input">New Calculation</a>
+    </div>
+  </nav>
+
+  <div class="overview__content">
+    <section class="overview__hero">
+      <h1 class="overview__hero-heading">Code Challenge</h1>
+      <p class="overview__hero-tagline">
+        Matrix rotation, QR factorization, and statistical analysis in a single workflow.
+      </p>
+      <p class="overview__hero-description">
+        A technical solution for the Interseguro TI Division that connects a Go API
+        (Fiber v3) with a Node.js API (Express 5) to perform matrix operations,
+        Gram-Schmidt Modified QR decomposition, and global statistics across
+        the resulting matrices.
+      </p>
+      <div class="overview__hero-ctas">
+        <a class="overview__cta overview__cta--primary" routerLink="/input">
+          New calculation
+        </a>
+        <a class="overview__cta overview__cta--secondary" routerLink="/results">
+          View results
+        </a>
+      </div>
+    </section>
+  </div>
+
+  <section class="overview__features-tile">
+    <div class="overview__features-inner">
+      <h2 class="overview__features-heading">How it works.</h2>
+      <div class="overview__features-grid">
+        <div class="overview__feature-card">
+          <mat-icon class="overview__feature-icon">rotate_right</mat-icon>
+          <h3 class="overview__feature-title">Matrix Rotation</h3>
+          <p class="overview__feature-subtitle">
+            7 rotation types supported.
+          </p>
+          <p class="overview__feature-body">
+            Choose from clockwise (90&deg;, 180&deg;, 270&deg;), transpose,
+            horizontal flip, or vertical flip. The rotation is applied
+            before QR factorization so the result reflects the transformed
+            input.
+          </p>
+        </div>
+
+        <div class="overview__feature-card">
+          <mat-icon class="overview__feature-icon">grid_on</mat-icon>
+          <h3 class="overview__feature-title">QR Factorization</h3>
+          <p class="overview__feature-subtitle">
+            Gram-Schmidt Modified algorithm.
+          </p>
+          <p class="overview__feature-body">
+            The Go API decomposes the rotated matrix into an orthogonal
+            matrix Q and an upper triangular matrix R. The algorithm
+            handles any m&times;n matrix where rows &ge; columns and
+            the input is not singular.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="overview__analytics-tile">
+    <div class="overview__analytics-inner">
+      <h2 class="overview__analytics-heading">Analytics &amp; Results.</h2>
+      <p class="overview__analytics-subheading">
+        Once factorization completes, the Node.js API processes the three output
+        matrices and returns global statistics.
+      </p>
+
+      <div class="overview__analytics-grid">
+        <div class="overview__analytics-card">
+          <div class="overview__analytics-icon-wrap">
+            <mat-icon class="overview__analytics-icon">query_stats</mat-icon>
+          </div>
+          <h3 class="overview__analytics-title">Global Statistics</h3>
+          <p class="overview__analytics-body">
+            Maximum, minimum, average, sum, total elements, and
+            number of matrices are computed across Q, R, and the
+            rotated matrix in a single pass.
+          </p>
+        </div>
+
+        <div class="overview__analytics-card">
+          <div class="overview__analytics-icon-wrap">
+            <mat-icon class="overview__analytics-icon">checklist</mat-icon>
+          </div>
+          <h3 class="overview__analytics-title">Diagonal Detection</h3>
+          <p class="overview__analytics-body">
+            Each square matrix is checked against a 1&times;10<sup>&minus;10</sup>
+            tolerance to determine if it is diagonal. Results include
+            the matrix name, index, and dimensions.
+          </p>
+        </div>
+
+        <div class="overview__analytics-card">
+          <div class="overview__analytics-icon-wrap">
+            <mat-icon class="overview__analytics-icon">hub</mat-icon>
+          </div>
+          <h3 class="overview__analytics-title">Service Orchestration</h3>
+          <p class="overview__analytics-body">
+            The Go API calls the Node API with internal JWT auth.
+            If the Node API is unavailable, the system degrades
+            gracefully and returns Q, R, and rotated matrix without
+            statistics.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="overview__cta-tile">
+    <div class="overview__cta-inner">
+      <h2 class="overview__cta-heading">Ready to try?</h2>
+      <p class="overview__cta-subheading">
+        Enter a rectangular matrix and select a rotation type to get started.
+      </p>
+      <a class="overview__cta overview__cta--primary" routerLink="/input">
+        Get started
+      </a>
+    </div>
+  </section>
+</div>

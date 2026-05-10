@@ -1,0 +1,133 @@
+<div class="input">
+  <nav class="input__global-nav">
+    <span class="input__global-nav-brand">Coding Challenge QR</span>
+    <div class="input__global-nav-links">
+      <a class="input__global-nav-link" routerLink="/overview">Overview</a>
+      <a class="input__global-nav-link input__global-nav-link--active"
+         routerLink="/input">Input</a>
+      <a class="input__global-nav-link" routerLink="/results">Results</a>
+    </div>
+    <div class="input__global-nav-actions">
+      <button class="input__logout-btn" mat-icon-button
+              (click)="auth.logout()" matTooltip="Sign out">
+        <mat-icon class="input__logout-icon">logout</mat-icon>
+      </button>
+    </div>
+  </nav>
+
+  <nav class="input__sub-nav">
+    <span class="input__sub-nav-title">Input</span>
+  </nav>
+
+  <div class="input__content">
+    <section class="input__hero">
+      <h1 class="input__hero-heading">Matrix Configuration</h1>
+      <p class="input__hero-description">
+        Define la matriz rectangular ingresando el numero de filas y columnas.
+        Cada celda acepta valores numericos. La factorizacion QR requiere
+        que las filas sean &ge; las columnas.
+      </p>
+    </section>
+
+    <section class="input__config-tile">
+      <div class="input__config-row">
+        <mat-form-field class="input__dim-field" appearance="outline">
+          <mat-label>Rows</mat-label>
+          <input
+            matInput
+            type="number"
+            [min]="1"
+            [max]="10"
+            [value]="rows()"
+            (input)="onRowsChange($any($event.target).value)" />
+          @if (rowError()) {
+            <mat-error>{{ rowError() }}</mat-error>
+          }
+          <mat-hint>1 &ndash; 10</mat-hint>
+        </mat-form-field>
+
+        <mat-form-field class="input__dim-field" appearance="outline">
+          <mat-label>Columns</mat-label>
+          <input
+            matInput
+            type="number"
+            [min]="1"
+            [max]="10"
+            [value]="cols()"
+            (input)="onColsChange($any($event.target).value)" />
+          @if (colError()) {
+            <mat-error>{{ colError() }}</mat-error>
+          }
+          <mat-hint>1 &ndash; 10</mat-hint>
+        </mat-form-field>
+      </div>
+
+      <div class="input__config-row">
+        <div class="input__rotation-field">
+          <gacc-rotation-selector
+            [rotation]="rotation()"
+            (rotationChange)="rotation.set($event)" />
+        </div>
+      </div>
+    </section>
+
+    <section class="input__preview-tile">
+      <h2 class="input__preview-heading">Matrix Preview</h2>
+      <p class="input__preview-sub">
+        {{ rows() }} &times; {{ cols() }} &middot;
+        {{ totalElements() }} elements
+      </p>
+
+      <mat-card class="input__grid-card">
+        <mat-card-content class="input__grid-content">
+          <div
+            class="input__grid"
+            [style.--cols]="cols()">
+            @for (row of cells(); track trackRowIdx($index); let i = $index) {
+              @for (cell of row; track trackCellIdx($index); let j = $index) {
+                <input
+                  class="input__cell"
+                  type="number"
+                  [value]="cell"
+                  (input)="onCellChange(i, j, $any($event.target).value)"
+                  [attr.aria-label]="'Row ' + (i + 1) + ', Column ' + (j + 1)" />
+              }
+            }
+          </div>
+        </mat-card-content>
+      </mat-card>
+
+      @if (errorMessage()) {
+        <div class="input__error-banner">
+          <mat-icon class="input__error-icon">error_outline</mat-icon>
+          <div class="input__error-body">
+            <span class="input__error-code">{{ errorCode() }}</span>
+            <p class="input__error-text">{{ errorMessage() }}</p>
+          </div>
+          <button class="input__error-dismiss" (click)="clearError()">
+            <mat-icon>close</mat-icon>
+          </button>
+        </div>
+      }
+
+      <div class="input__actions">
+        @if (qrResource.isLoading()) {
+          <gacc-loading-spinner message="Calculating QR factorization..." />
+        } @else {
+          <button
+            class="input__cta"
+            (click)="calculate()"
+            [disabled]="!isComplete() || !!rowError() || !!colError()">
+            <mat-icon>play_arrow</mat-icon>
+            Run Factorization
+          </button>
+          @if (!isComplete()) {
+            <p class="input__hint">
+              Complete all {{ totalElements() }} cells to enable the button.
+            </p>
+          }
+        }
+      </div>
+    </section>
+  </div>
+</div>
