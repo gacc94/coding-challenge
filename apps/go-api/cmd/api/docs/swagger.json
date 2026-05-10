@@ -1,0 +1,168 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "Coding Challenge API (Go)",
+    "description": "API para rotación de matrices y factorización QR",
+    "version": "1.0",
+    "contact": {
+      "name": "División TI - Interseguro",
+      "email": "desarrolloti@interseguro.pe"
+    }
+  },
+  "host": "localhost:3001",
+  "basePath": "/",
+  "schemes": ["http"],
+  "securityDefinitions": {
+    "BearerAuth": {
+      "type": "apiKey",
+      "in": "header",
+      "name": "Authorization",
+      "description": "JWT Bearer token. Ej: Bearer eyJhbGciOi..."
+    }
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": ["Health"],
+        "summary": "Health check",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": { "$ref": "#/definitions/HealthResponse" }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/login": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Login de usuario",
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": { "$ref": "#/definitions/AuthRequest" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Token JWT",
+            "schema": { "$ref": "#/definitions/AuthResponse" }
+          },
+          "400": { "description": "Error de validación" },
+          "401": { "description": "Credenciales inválidas" }
+        }
+      }
+    },
+    "/api/v1/qr-factorization": {
+      "post": {
+        "tags": ["QR"],
+        "summary": "Factorización QR con rotación",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": { "$ref": "#/definitions/FactorizationRequest" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Resultado QR + estadísticas",
+            "schema": { "$ref": "#/definitions/FactorizationResponse" }
+          },
+          "400": { "description": "Error de validación" },
+          "401": { "description": "Token inválido" },
+          "422": { "description": "Matriz singular" },
+          "500": { "description": "Error interno" }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "AuthRequest": {
+      "type": "object",
+      "required": ["username", "password"],
+      "properties": {
+        "username": { "type": "string", "example": "admin" },
+        "password": { "type": "string", "example": "secret", "minLength": 6 }
+      }
+    },
+    "AuthResponse": {
+      "type": "object",
+      "properties": {
+        "token": { "type": "string" },
+        "type": { "type": "string", "example": "Bearer" },
+        "expiresIn": { "type": "integer", "example": 3600 }
+      }
+    },
+    "FactorizationRequest": {
+      "type": "object",
+      "required": ["matrix", "rotation"],
+      "properties": {
+        "matrix": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": { "type": "number" }
+          },
+          "example": [[1, 2], [3, 4], [5, 6]]
+        },
+        "rotation": {
+          "type": "string",
+          "enum": ["none", "clockwise_90", "clockwise_180", "clockwise_270", "transpose", "horizontal_flip", "vertical_flip"],
+          "example": "clockwise_90"
+        }
+      }
+    },
+    "FactorizationResponse": {
+      "type": "object",
+      "properties": {
+        "original": { "type": "array", "items": { "type": "array", "items": { "type": "number" } } },
+        "rotated": { "type": "array", "items": { "type": "array", "items": { "type": "number" } } },
+        "rotation": { "type": "string" },
+        "Q": { "type": "array", "items": { "type": "array", "items": { "type": "number" } } },
+        "R": { "type": "array", "items": { "type": "array", "items": { "type": "number" } } },
+        "stats": { "$ref": "#/definitions/StatsResponse" }
+      }
+    },
+    "StatsResponse": {
+      "type": "object",
+      "properties": {
+        "max": { "type": "number" },
+        "min": { "type": "number" },
+        "average": { "type": "number" },
+        "sum": { "type": "number" },
+        "totalElements": { "type": "integer" },
+        "numberOfMatrices": { "type": "integer" },
+        "diagonalMatrices": {
+          "type": "object",
+          "properties": {
+            "count": { "type": "integer" },
+            "matrices": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "matrixIndex": { "type": "integer" },
+                  "name": { "type": "string" },
+                  "dimensions": { "type": "string" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "HealthResponse": {
+      "type": "object",
+      "properties": {
+        "status": { "type": "string", "example": "ok" },
+        "service": { "type": "string", "example": "go-api" },
+        "timestamp": { "type": "string", "example": "2024-06-15T10:30:00Z" }
+      }
+    }
+  }
+}
