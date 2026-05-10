@@ -1,0 +1,43 @@
+services:
+  go-api:
+    build:
+      context: ./apps/go-api
+      dockerfile: Dockerfile
+    ports:
+      - '3001:3001'
+    environment:
+      - PORT=3001
+      - NODE_API_URL=http://node-api:3002
+      - JWT_SECRET=${JWT_SECRET:-supersecret123}
+    networks:
+      - challenge-network
+    healthcheck:
+      test: ['CMD', 'wget', '-q', '--spider', 'http://localhost:3001/health']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  node-api:
+    build:
+      context: ./apps/node-api
+      dockerfile: Dockerfile
+    ports:
+      - '3002:3002'
+    environment:
+      - PORT=3002
+      - JWT_SECRET=${JWT_SECRET:-supersecret123}
+      - NODE_ENV=production
+      - AUTH_USERNAME=admin
+      - AUTH_PASSWORD=secret
+      - CORS_ORIGIN=*
+    networks:
+      - challenge-network
+    healthcheck:
+      test: ['CMD', 'wget', '-q', '--spider', 'http://localhost:3002/health']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+networks:
+  challenge-network:
+    driver: bridge

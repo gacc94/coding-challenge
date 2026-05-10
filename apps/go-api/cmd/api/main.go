@@ -45,6 +45,10 @@ func main() {
 	app.Use(middleware.Recover())
 	app.Use(middleware.Logger())
 
+	app.Get("/swagger", func(c fiber.Ctx) error {
+		return c.Redirect().To("/swagger/index.html")
+	})
+
 	app.Get("/swagger/doc.json", func(c fiber.Ctx) error {
 		data, err := swaggerFiles.ReadFile("docs/swagger.json")
 		if err != nil {

@@ -1,0 +1,22 @@
+# Binaries
+api
+*.test
+*.out
+
+# Environment
+.env
+.env.local
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+
+# Tests
+tests/
+
+# Docker
+Dockerfile
+.dockerignore

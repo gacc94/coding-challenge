@@ -327,7 +327,6 @@ type StatsRequest = z.infer<typeof StatsRequestSchema>;
 | Librería | Versión | ¿Por qué se agrega? |
 |----------|---------|---------------------|
 | `typescript` | ^6.0.3 | Última versión con mejor inferencia de tipos |
-| `tsx` | ^4.21.0 | Ejecutar TS en desarrollo (más rápido que ts-node, compatible Bun) |
 | `@types/node` | ^22.13.0 | Tipos Node.js |
 | `@types/express` | ^5.0.6 | Tipos Express 5 |
 | `@types/express-serve-static-core` | ^5.1.1 | Tipos core para Express 5 |
@@ -346,7 +345,7 @@ type StatsRequest = z.infer<typeof StatsRequestSchema>;
 | Velocidad | Más rápido (HMR) | Más lento |
 | ESM | Nativo | Requiere configuración |
 | Config | Mínima (`vitest.config.ts`) | `jest.config.js` |
-| TypeScript | Nativo con tsx | Requiere ts-jest |
+| TypeScript | Nativo sin configuración | Requiere ts-jest |
 | Compatibilidad | API Jest (describe, it, expect) | N/A |
 | Watch mode | Instantáneo | Lento |
 
@@ -785,7 +784,7 @@ export default defineConfig({
 {
   "scripts": {
     "start": "node dist/index.js",
-    "dev": "tsx src/index.ts",
+    "dev": "tsc && node dist/index.js",
     "build": "tsc",
     "test": "vitest run",
     "test:watch": "vitest",
