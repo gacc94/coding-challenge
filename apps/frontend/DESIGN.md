@@ -522,7 +522,7 @@ Error and validation states were not surfaced in the analyzed pages.
 | Desktop | 1069–1440px | Full layout; 4–5 column store grids; 1440px content max |
 | Wide desktop | ≥ 1441px | Content locks at 1440px, margins absorb extra width |
 
-The structural breakpoints that matter for agents: 1440px (content lock), 1068px (small-desktop), 833px (tablet landscape switch), 734px (tablet portrait), 640px (phone), 480px (small phone).
+The structural breakpoints that matter for responsive design: 1440px (content lock), 1068px (small-desktop), 833px (tablet landscape switch), 734px (tablet portrait), 640px (phone), 480px (small phone).
 
 ### Touch Targets
 - Minimum 44 × 44px. `{component.button-primary}` lands at ~44 × 100px (with the full-pill radius making the visible hit area more generous than the label suggests).
