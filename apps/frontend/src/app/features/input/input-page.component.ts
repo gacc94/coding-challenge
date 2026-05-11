@@ -12,6 +12,7 @@ import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatGridListModule } from '@angular/material/grid-list';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
@@ -40,6 +41,7 @@ const DEFAULT_COLS = 3;
     FormsModule,
     MatButtonModule,
     MatFormFieldModule,
+    MatGridListModule,
     MatInputModule,
     MatIconModule,
     MatTooltipModule,
@@ -74,10 +76,42 @@ export class InputPage {
   protected readonly isComplete = computed(() => {
     const m = this.cells();
     if (!m.length || !m[0]?.length) return false;
-    return m.every((row) => row.every((v) => typeof v === 'number' && !Number.isNaN(v)));
+    return m.every((row) =>
+      row.every((v) => typeof v === 'number' && !Number.isNaN(v) && v !== null),
+    );
+  });
+
+  protected readonly filledCount = computed(() => {
+    const m = this.cells();
+    if (!m.length || !m[0]?.length) return 0;
+    let count = 0;
+    for (const row of m) {
+      for (const v of row) {
+        if (typeof v === 'number' && !Number.isNaN(v) && v !== null) count++;
+      }
+    }
+    return count;
   });
 
   protected readonly totalElements = computed(() => this.rows() * this.cols());
+
+  protected readonly flatCells = computed(() => {
+    const m = this.cells();
+    const flat: number[] = [];
+    for (const row of m) {
+      for (const v of row) {
+        flat.push(v);
+      }
+    }
+    return flat;
+  });
+
+  /* ── Track functions (unique per cell via flat index) ─── */
+
+  protected readonly trackRow = (_i: number): number => _i;
+  protected readonly trackCell = (_j: number): number => _j;
+
+  /* ── HTTP resource ────────────────────────────── */
 
   protected readonly qrResource = httpResource<FactorizationResponse>(() => {
     const t = this.trigger();
@@ -112,7 +146,7 @@ export class InputPage {
     }
   });
 
-  /* ── Grid ────────────────────────────────────── */
+  /* ── Grid builders ────────────────────────────── */
 
   private buildMatrix(r: number, c: number): number[][] {
     return Array.from({ length: r }, () => new Array(c).fill(0));
@@ -128,7 +162,7 @@ export class InputPage {
     return result;
   }
 
-  /* ── Handlers ────────────────────────────────── */
+  /* ── Handlers ─────────────────────────────────── */
 
   onRowsChange(value: string): void {
     const n = parseInt(value, 10);
@@ -141,13 +175,13 @@ export class InputPage {
       return;
     }
     if (n < this.cols()) {
-      this.rowError.set('Rows must be ≥ columns for QR factorization.');
+      this.rowError.set('Rows must be \u2265 columns for QR factorization.');
       return;
     }
     this.rowError.set(null);
     this.clearError();
-    this.cells.update((old) => this.preserveValues(n, this.cols(), old));
     this.rows.set(n);
+    this.cells.update((old) => this.preserveValues(n, this.cols(), old));
   }
 
   onColsChange(value: string): void {
@@ -161,13 +195,13 @@ export class InputPage {
       return;
     }
     if (n > this.rows()) {
-      this.colError.set('Columns must be ≤ rows for QR factorization.');
+      this.colError.set('Columns must be \u2264 rows for QR factorization.');
       return;
     }
     this.colError.set(null);
     this.clearError();
-    this.cells.update((old) => this.preserveValues(this.rows(), n, old));
     this.cols.set(n);
+    this.cells.update((old) => this.preserveValues(this.rows(), n, old));
   }
 
   onCellChange(rowIdx: number, colIdx: number, value: string): void {
@@ -185,7 +219,7 @@ export class InputPage {
     this.clearError();
 
     if (this.rows() < this.cols()) {
-      this.errorMessage.set('Rows must be ≥ columns for QR factorization.');
+      this.errorMessage.set('Rows must be \u2265 columns for QR factorization.');
       this.errorCode.set('VALIDATION_ERROR');
       return;
     }
@@ -204,7 +238,4 @@ export class InputPage {
     this.errorCode.set(null);
     this.errorMessage.set(null);
   }
-
-  protected readonly trackRowIdx = (i: number): number => i;
-  protected readonly trackCellIdx = (j: number): number => j;
 }

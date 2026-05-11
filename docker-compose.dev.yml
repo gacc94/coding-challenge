@@ -1,0 +1,38 @@
+services:
+  go-api:
+    build:
+      dockerfile: Dockerfile.dev
+    ports:
+      - '3001:3001'
+    volumes:
+      - ./apps/go-api:/app
+      - /app/tmp
+      - go-mod-cache:/go/pkg/mod
+
+  node-api:
+    build:
+      dockerfile: Dockerfile.dev
+    ports:
+      - '3002:3002'
+    environment:
+      - NODE_ENV=development
+    volumes:
+      - ./apps/node-api/src:/app/src
+      - ./apps/node-api/dist:/app/dist
+      - /app/node_modules
+
+  frontend:
+    build:
+      dockerfile: Dockerfile.dev
+    ports:
+      - '4200:4200'
+    volumes:
+      - ./apps/frontend/src:/app/src
+      - ./apps/frontend/angular.json:/app/angular.json
+      - ./apps/frontend/tsconfig.json:/app/tsconfig.json
+      - ./apps/frontend/tsconfig.app.json:/app/tsconfig.app.json
+      - ./apps/frontend/public:/app/public
+      - /app/node_modules
+
+volumes:
+  go-mod-cache:

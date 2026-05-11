@@ -1,11 +1,15 @@
 <div class="input">
-  <!-- ─────────────────── Global Navigation ─────────────────── -->
   <nav class="input__global-nav">
-    <span class="input__global-nav-brand">MATRIX CHALLENGE</span>
-    <div class="input__global-nav-spacer"></div>
+    <span class="input__global-nav-brand">Coding Challenge QR</span>
+    <div class="input__global-nav-links">
+      <a class="input__global-nav-link"
+        routerLink="/overview">Overview</a>
+      <a class="input__global-nav-link input__global-nav-link--active"
+        routerLink="/input">Input</a>
+      <a class="input__global-nav-link"
+        routerLink="/results">Results</a>
+    </div>
     <div class="input__global-nav-actions">
-      <button mat-stroked-button class="input__nav-btn input__nav-btn--login">Login</button>
-      <button mat-raised-button class="input__nav-btn input__nav-btn--signup">Sign Up</button>
       <button class="input__logout-btn" mat-icon-button
               (click)="auth.logout()" matTooltip="Sign out">
         <mat-icon class="input__logout-icon">logout</mat-icon>
@@ -13,31 +17,28 @@
     </div>
   </nav>
 
-  <!-- ─────────────────── Sub Navigation ─────────────────── -->
   <nav class="input__sub-nav">
     <div class="input__sub-nav-container">
-      <a class="input__sub-nav-link" routerLink="/overview">Overview</a>
-      <a class="input__sub-nav-link input__sub-nav-link--active" routerLink="/input">Input</a>
-      <a class="input__sub-nav-link" routerLink="/results">Results</a>
+      <span class="input__sub-nav-title">Input</span>
+      <div class="input__sub-nav-actions">
+        <a class="input__sub-nav-link" routerLink="/results">View Results</a>
+      </div>
     </div>
   </nav>
 
-  <!-- ─────────────────── Main Content ─────────────────── -->
   <div class="input__content">
     <div class="input__config-section">
-      <!-- Header -->
       <div class="input__header">
         <h1 class="input__title">Matrix Configuration</h1>
         <p class="input__subtitle">
-          Define the dimensions and rotation parameters for your matrix factorization sequence.
+          Define the dimensions and rotation parameters for your matrix
+          factorization sequence.
         </p>
       </div>
 
-      <!-- Configuration Form -->
       <div class="input__form-container">
-        <!-- Rows & Columns Row -->
         <div class="input__form-row">
-          <mat-form-field class="input__form-field input__form-field--rows" appearance="outline">
+          <mat-form-field class="input__form-field" appearance="outline">
             <mat-label>Rows (N)</mat-label>
             <input
               matInput
@@ -51,7 +52,7 @@
             }
           </mat-form-field>
 
-          <mat-form-field class="input__form-field input__form-field--cols" appearance="outline">
+          <mat-form-field class="input__form-field" appearance="outline">
             <mat-label>Columns (M)</mat-label>
             <input
               matInput
@@ -66,7 +67,6 @@
           </mat-form-field>
         </div>
 
-        <!-- Rotation Matrix Type -->
         <div class="input__form-row input__form-row--full">
           <div class="input__rotation-wrapper">
             <gacc-rotation-selector
@@ -76,25 +76,33 @@
         </div>
       </div>
 
-      <!-- Initial State Preview -->
       <div class="input__preview-section">
-        <h2 class="input__preview-title">Initial State Preview</h2>
+        <div class="input__preview-header">
+          <h2 class="input__preview-title">Initial State Preview</h2>
+          <span class="input__preview-dim">
+            {{ rows() }} &times; {{ cols() }}
+          </span>
+        </div>
 
         <div class="input__grid-wrapper">
-          <div
+          <mat-grid-list
             class="input__grid"
-            [style.--cols]="cols()">
-            @for (row of cells(); track trackRowIdx($index); let i = $index) {
-              @for (cell of row; track trackCellIdx($index); let j = $index) {
-                <input
-                  class="input__grid-cell"
-                  type="number"
-                  [value]="cell"
-                  (input)="onCellChange(i, j, $any($event.target).value)"
-                  [attr.aria-label]="'Row ' + (i + 1) + ', Column ' + (j + 1)" />
+            [cols]="cols()"
+            rowHeight="48px"
+            [gutterSize]="'8px'">
+            @for (row of cells(); track trackRow($index); let i = $index) {
+              @for (cell of row; track trackCell($index); let j = $index) {
+                <mat-grid-tile class="input__grid-tile">
+                  <input
+                    class="input__grid-cell"
+                    type="number"
+                    [value]="cell"
+                    (input)="onCellChange(i, j, $any($event.target).value)"
+                    [attr.aria-label]="'Row ' + (i + 1) + ', Column ' + (j + 1)" />
+                </mat-grid-tile>
               }
             }
-          </div>
+          </mat-grid-list>
         </div>
 
         @if (errorMessage()) {
@@ -111,7 +119,6 @@
         }
       </div>
 
-      <!-- Action Button -->
       <div class="input__button-container">
         @if (qrResource.isLoading()) {
           <gacc-loading-spinner message="Calculating QR factorization..." />
@@ -121,11 +128,12 @@
             mat-raised-button
             (click)="calculate()"
             [disabled]="!isComplete() || !!rowError() || !!colError()">
+            <mat-icon>play_arrow</mat-icon>
             Run Factorization
           </button>
           @if (!isComplete()) {
             <p class="input__completion-hint">
-              Complete all {{ totalElements() }} cells to enable the button.
+              {{ filledCount() }} of {{ totalElements() }} cells filled
             </p>
           }
         }

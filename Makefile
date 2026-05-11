@@ -1,18 +1,18 @@
-.PHONY: help up up-prod down build test-go test-node test-frontend test-all clean logs logs-go logs-node logs-frontend
+.PHONY: help up dev down build test-go test-node test-frontend test-all clean logs logs-go logs-node logs-frontend
 
 # ─── HELP ──────────────────────────────────────────
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-22s\033[0m %s\n", $$1, $$2}'
 
 # ─── DOCKER COMPOSE ────────────────────────────────
-up: ## Start all services (dev mode)
-	JWT_SECRET=supersecret123 docker-compose up -d --build
+up: ## Start all services (production mode)
+	JWT_SECRET=supersecret123 docker compose up -d --build
 
-up-prod: ## Start all services (production mode · requires JWT_SECRET)
-	docker-compose up -d --build
+dev: ## Start all services with hot reload (development mode)
+	docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
 
 down: ## Stop and remove all services
-	docker-compose down
+	docker compose down
 
 build: ## Build all Docker images
 	docker-compose build
