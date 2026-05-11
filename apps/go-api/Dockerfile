@@ -10,23 +10,14 @@ COPY . .
 
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o main ./cmd/api
 
-FROM alpine:3.21
+FROM alpine:latest
 
-RUN apk add --no-cache ca-certificates tzdata
+RUN apk --no-cache add ca-certificates
 
-RUN addgroup -S appgroup && adduser -S appuser -G appgroup
-
-WORKDIR /app
+WORKDIR /root/
 
 COPY --from=builder /app/main .
 
-RUN chown -R appuser:appgroup /app
-
-USER appuser
-
 EXPOSE 3001
-
-HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
-    CMD wget -q --spider http://localhost:3001/health || exit 1
 
 CMD ["./main"]
