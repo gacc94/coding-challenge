@@ -2,6 +2,13 @@
 
 Solucion tecnica del coding challenge de la Division TI de Interseguro. Sistema distribuido con dos APIs RESTful y un frontend Angular que implementa **rotacion de matrices**, **factorizacion QR** (Gram-Schmidt Modificado) y **calculo de estadisticas globales** con deteccion de matrices diagonales.
 
+| Entorno | Frontend | Go API | Node API |
+|---|---|---|---|
+| **Produccion** | [netlify.app](https://coding-challenge-gacc.netlify.app) | [go-api-xnzb](https://go-api-xnzb.onrender.com) | [node-api-jqy3](https://node-api-jqy3.onrender.com) |
+| **Local** | `http://localhost` | `http://localhost:3001` | `http://localhost:3002` |
+
+[![Login Screen](docs/imgs/login.png)](https://coding-challenge-gacc.netlify.app/login)
+
 ## Arquitectura
 
 ```mermaid
@@ -140,15 +147,34 @@ graph LR
 
 El pipeline CI ejecuta: lint, tests con coverage, build de imagenes Docker, y reporte de cobertura en PRs.
 
-## Deploy
+## Deploy (Produccion)
 
 | Servicio | Plataforma | URL | Estado |
 |---|---|---|---|
 | Frontend Angular | Netlify | [coding-challenge-gacc.netlify.app](https://coding-challenge-gacc.netlify.app) | ✅ Live |
-| Go API | Render | `https://go-api-xxxx.onrender.com` | ⏳ Pendiente |
-| Node API | Render | `https://node-api-xxxx.onrender.com` | ⏳ Pendiente |
+| Go API | Render | [go-api-xnzb.onrender.com](https://go-api-xnzb.onrender.com) | ✅ Live |
+| Node API | Render | [node-api-jqy3.onrender.com](https://node-api-jqy3.onrender.com) | ✅ Live |
+| Swagger Go | Render | [go-api-xnzb.onrender.com/swagger](https://go-api-xnzb.onrender.com/swagger) | ✅ Live |
+| Swagger Node | Render | [node-api-jqy3.onrender.com/api-docs](https://node-api-jqy3.onrender.com/api-docs) | ✅ Live |
 
-> Guias de deploy: [Frontend](docs/deploy/frontend.md) · [Go API](docs/deploy/go-api.md) · [Node API](docs/deploy/node-api.md)
+> Guias de deploy paso a paso: [Frontend](docs/deploy/frontend.md) · [Go API](docs/deploy/go-api.md) · [Node API](docs/deploy/node-api.md)
+
+### Flujo en Produccion
+
+```
+Usuario → Netlify CDN (frontend) → Go API (Render) → Node API (Render)
+                                                          ↓
+                                            { max, min, average, sum, diagonalMatrices }
+                                                          ↓
+                        { original, rotated, Q, R, stats } → Frontend
+```
+
+### Notas
+
+- **Free Tier ($0/mes)** en ambas plataformas
+- **Cold start**: primer request tras inactividad tarda ~30s. Requests subsiguientes son instantaneos
+- **Graceful degradation**: si Node API no responde, Go API retorna `stats: null` pero Q y R funcionan
+- Las 3 APIs comparten el mismo `JWT_SECRET` para validacion de tokens
 
 ## Estructura del Monorepo
 

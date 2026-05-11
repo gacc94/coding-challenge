@@ -1,4 +1,4 @@
 export const environment = {
   production: true,
-  apiGoUrl: 'http://localhost:3001',
+  apiGoUrl: 'https://go-api-xnzb.onrender.com',
 };
