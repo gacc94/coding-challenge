@@ -1,0 +1,1486 @@
+{
+  "info": {
+    "_postman_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "name": "Interseguro Coding Challenge",
+    "description": "Coleccion completa de APIs para el Coding Challenge de la Division TI — Interseguro.\n\n**Servicios**\n- Go API (Fiber v3) :3001 — Rotacion de matrices + Factorizacion QR\n- Node API (Express 5) :3002 — Estadisticas globales\n\n**Flujo principal**: Login → QR Factorization → Resultados\n\n**Credenciales**: admin / secret\n\n---\n\n### Requisitos\n```bash\nmake up   # Iniciar los 3 servicios con Docker Compose\n```\n\n### Variables de Entorno\n| Variable | Default |\n|---|---|\n| `go_api_url` | http://localhost:3001 |\n| `node_api_url` | http://localhost:3002 |\n| `username` | admin |\n| `password` | secret |\n| `jwt_token` | (auto-generado) |\n\n### Notas\n- Los requests protegidos ejecutan login automatico si no hay token\n- La Go API orquesta: rotacion → QR → envia a Node API → responde al cliente\n- Si Node API no responde, Go API retorna `stats: null` (graceful degradation)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "go_api_url",
+      "value": "http://localhost:3001",
+      "type": "string"
+    },
+    {
+      "key": "node_api_url",
+      "value": "http://localhost:3002",
+      "type": "string"
+    },
+    {
+      "key": "jwt_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "username",
+      "value": "admin",
+      "type": "string"
+    },
+    {
+      "key": "password",
+      "value": "secret",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health Checks",
+      "description": "Verificacion del estado de ambos servicios antes de ejecutar pruebas.",
+      "item": [
+        {
+          "name": "GET Go API Health",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Servicio identificado como go-api', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.service).to.eql('go-api');",
+                  "});",
+                  "",
+                  "pm.test('Respuesta contiene status ok', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.status).to.eql('ok');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{go_api_url}}/health",
+              "host": ["{{go_api_url}}"],
+              "path": ["health"]
+            },
+            "description": "Health check de la Go API. Debe responder con status 200 y `{\"status\":\"ok\",\"service\":\"go-api\"}` en local.\n\nEn produccion (Render), el primer request puede tardar ~30s por cold start del free tier."
+          },
+          "response": []
+        },
+        {
+          "name": "GET Node API Health",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Servicio identificado como node-api', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.service).to.eql('node-api');",
+                  "});",
+                  "",
+                  "pm.test('Respuesta contiene status ok', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.status).to.eql('ok');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{node_api_url}}/health",
+              "host": ["{{node_api_url}}"],
+              "path": ["health"]
+            },
+            "description": "Health check de la Node API. Debe responder con status 200 y `{\"status\":\"ok\",\"service\":\"node-api\"}`."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Autenticacion",
+      "description": "Endpoints de login para obtener el token JWT. El token se almacena automaticamente en la variable `jwt_token` del environment para ser usado por los requests protegidos.",
+      "item": [
+        {
+          "name": "POST Login (Go API)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.environment.set('jwt_token', '');"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Token JWT generado correctamente', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.token).to.be.a('string');",
+                  "    pm.expect(json.token.split('.')).to.have.lengthOf(3);",
+                  "    pm.expect(json.type).to.eql('Bearer');",
+                  "    pm.expect(json.expiresIn).to.eql(3600);",
+                  "    pm.environment.set('jwt_token', json.token);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{username}}\",\n  \"password\": \"{{password}}\"\n}"
+            },
+            "url": {
+              "raw": "{{go_api_url}}/api/v1/auth/login",
+              "host": ["{{go_api_url}}"],
+              "path": ["api", "v1", "auth", "login"]
+            },
+            "description": "Autenticacion contra la Go API. Obtiene un JWT HS256 valido por 1 hora.\n\n**Pre-request**: limpia el token anterior.\n**Post-request**: guarda el token en `jwt_token` para los demas requests."
+          },
+          "response": []
+        },
+        {
+          "name": "POST Login (Node API)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.environment.set('jwt_token', '');"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Token JWT generado por Node API', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.token).to.be.a('string');",
+                  "    pm.environment.set('jwt_token', json.token);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{username}}\",\n  \"password\": \"{{password}}\"\n}"
+            },
+            "url": {
+              "raw": "{{node_api_url}}/api/v1/auth/login",
+              "host": ["{{node_api_url}}"],
+              "path": ["api", "v1", "auth", "login"]
+            },
+            "description": "Autenticacion contra la Node API. Ambas APIs comparten el mismo JWT_SECRET, por lo que los tokens son intercambiables."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Factorizacion QR",
+      "description": "Requests al endpoint principal de factorizacion QR en la Go API. Cada request incluye:\n\n- **Autenticacion**: Bearer token JWT (auto-login si no existe)\n- **Body**: `{ matrix: number[][], rotation: string }`\n- **Respuesta**: `{ original, rotated, Q, R, stats }`\n\nLa Go API rota la matriz, ejecuta Gram-Schmidt Modificado, envia Q/R/rotated a Node API, y retorna el resultado completo.",
+      "item": [
+        {
+          "name": "POST QR Basico (sin rotacion)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "if (!pm.environment.get('jwt_token')) {",
+                  "    console.log('⚠️  Sin token JWT. Ejecutando login automatico...');",
+                  "    pm.sendRequest({",
+                  "        url: pm.environment.get('go_api_url') + '/api/v1/auth/login',",
+                  "        method: 'POST',",
+                  "        header: { 'Content-Type': 'application/json' },",
+                  "        body: {",
+                  "            mode: 'raw',",
+                  "            raw: JSON.stringify({",
+                  "                username: pm.environment.get('username'),",
+                  "                password: pm.environment.get('password')",
+                  "            })",
+                  "        }",
+                  "    }, function (err, res) {",
+                  "        if (!err && res.code === 200) {",
+                  "            const token = res.json().token;",
+                  "            pm.environment.set('jwt_token', token);",
+                  "            console.log('✅ Token auto-generado');",
+                  "        } else {",
+                  "            console.error('❌ Error en login automatico:', err || res.status);",
+                  "        }",
+                  "    });",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 — factorizacion exitosa', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "",
+                  "pm.test('Matriz original 3x2 presente', function () {",
+                  "    pm.expect(json.original).to.be.an('array').with.lengthOf(3);",
+                  "    pm.expect(json.original[0]).to.have.lengthOf(2);",
+                  "});",
+                  "",
+                  "pm.test('Matriz rotated presente y sin cambios (rotation=none)', function () {",
+                  "    pm.expect(json.rotated).to.be.an('array');",
+                  "    pm.expect(json.rotated).to.eql(json.original);",
+                  "});",
+                  "",
+                  "pm.test('Matriz Q — dimensiones 3x2 (ortalnormal)', function () {",
+                  "    pm.expect(json.Q).to.be.an('array').with.lengthOf(3);",
+                  "    pm.expect(json.Q[0]).to.have.lengthOf(2);",
+                  "});",
+                  "",
+                  "pm.test('Matriz R — dimensiones 2x2 (triangular superior)', function () {",
+                  "    pm.expect(json.R).to.be.an('array').with.lengthOf(2);",
+                  "    pm.expect(json.R[0]).to.have.lengthOf(2);",
+                  "});",
+                  "",
+                  "pm.test('Stats calculados por Node API', function () {",
+                  "    pm.expect(json.stats).to.be.an('object');",
+                  "    pm.expect(json.stats.max).to.be.a('number');",
+                  "    pm.expect(json.stats.min).to.be.a('number');",
+                  "    pm.expect(json.stats.average).to.be.a('number');",
+                  "    pm.expect(json.stats.sum).to.be.a('number');",
+                  "    pm.expect(json.stats.diagonalMatrices).to.be.an('object');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"matrix\": [\n    [1, 2],\n    [3, 4],\n    [5, 6]\n  ],\n  \"rotation\": \"none\"\n}"
+            },
+            "url": {
+              "raw": "{{go_api_url}}/api/v1/qr-factorization",
+              "host": ["{{go_api_url}}"],
+              "path": ["api", "v1", "qr-factorization"]
+            },
+            "description": "Factorizacion QR de una matriz 3x2 sin rotacion. Es el caso base de prueba.\n\n**Matriz de entrada**:\n```\n[1, 2]\n[3, 4]\n[5, 6]\n```\n\n**Esperado**: Q (3x2), R (2x2 triangular superior), stats completos."
+          },
+          "response": []
+        },
+        {
+          "name": "POST QR con Rotacion 90°",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "if (!pm.environment.get('jwt_token')) {",
+                  "    pm.sendRequest({",
+                  "        url: pm.environment.get('go_api_url') + '/api/v1/auth/login',",
+                  "        method: 'POST',",
+                  "        header: { 'Content-Type': 'application/json' },",
+                  "        body: {",
+                  "            mode: 'raw',",
+                  "            raw: JSON.stringify({",
+                  "                username: pm.environment.get('username'),",
+                  "                password: pm.environment.get('password')",
+                  "            })",
+                  "        }",
+                  "    }, function (err, res) {",
+                  "        if (!err && res.code === 200) {",
+                  "            pm.environment.set('jwt_token', res.json().token);",
+                  "        }",
+                  "    });",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "",
+                  "pm.test('Rotacion 90° CW correcta: 3x2 → 2x3', function () {",
+                  "    pm.expect(json.rotated).to.have.lengthOf(2);",
+                  "    pm.expect(json.rotated[0]).to.have.lengthOf(3);",
+                  "});",
+                  "",
+                  "pm.test('Valores rotados: [[5,3,1],[6,4,2]]', function () {",
+                  "    pm.expect(json.rotated).to.eql([[5, 3, 1], [6, 4, 2]]);",
+                  "});",
+                  "",
+                  "pm.test('Q y R presentes con dimensiones correctas', function () {",
+                  "    pm.expect(json.Q).to.be.an('array');",
+                  "    pm.expect(json.R).to.be.an('array');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"matrix\": [\n    [1, 2],\n    [3, 4],\n    [5, 6]\n  ],\n  \"rotation\": \"clockwise_90\"\n}"
+            },
+            "url": {
+              "raw": "{{go_api_url}}/api/v1/qr-factorization",
+              "host": ["{{go_api_url}}"],
+              "path": ["api", "v1", "qr-factorization"]
+            },
+            "description": "Aplica rotacion 90° horaria antes de la factorizacion QR.\n\n**Transformacion**:\n```\n[1, 2]          [5, 3, 1]\n[3, 4]  → 90° → [6, 4, 2]\n[5, 6]\n```\nLa factorizacion QR se ejecuta sobre la matriz rotada (2x3)."
+          },
+          "response": []
+        },
+        {
+          "name": "POST QR con Rotacion 180°",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "if (!pm.environment.get('jwt_token')) {",
+                  "    pm.sendRequest({",
+                  "        url: pm.environment.get('go_api_url') + '/api/v1/auth/login',",
+                  "        method: 'POST',",
+                  "        header: { 'Content-Type': 'application/json' },",
+                  "        body: {",
+                  "            mode: 'raw',",
+                  "            raw: JSON.stringify({",
+                  "                username: pm.environment.get('username'),",
+                  "                password: pm.environment.get('password')",
+                  "            })",
+                  "        }",
+                  "    }, function (err, res) {",
+                  "        if (!err && res.code === 200) {",
+                  "            pm.environment.set('jwt_token', res.json().token);",
+                  "        }",
+                  "    });",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "",
+                  "pm.test('Rotacion 180° correcta: [[6,5],[4,3],[2,1]]', function () {",
+                  "    pm.expect(json.rotated).to.eql([[6, 5], [4, 3], [2, 1]]);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"matrix\": [\n    [1, 2],\n    [3, 4],\n    [5, 6]\n  ],\n  \"rotation\": \"clockwise_180\"\n}"
+            },
+            "url": {
+              "raw": "{{go_api_url}}/api/v1/qr-factorization",
+              "host": ["{{go_api_url}}"],
+              "path": ["api", "v1", "qr-factorization"]
+            },
+            "description": "Rotacion de 180° antes de la factorizacion QR. Equivalente a invertir filas y columnas.\n\n**Resultado esperado**: `[[6,5],[4,3],[2,1]]`"
+          },
+          "response": []
+        },
+        {
+          "name": "POST QR con Rotacion 270°",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "if (!pm.environment.get('jwt_token')) {",
+                  "    pm.sendRequest({",
+                  "        url: pm.environment.get('go_api_url') + '/api/v1/auth/login',",
+                  "        method: 'POST',",
+                  "        header: { 'Content-Type': 'application/json' },",
+                  "        body: {",
+                  "            mode: 'raw',",
+                  "            raw: JSON.stringify({",
+                  "                username: pm.environment.get('username'),",
+                  "                password: pm.environment.get('password')",
+                  "            })",
+                  "        }",
+                  "    }, function (err, res) {",
+                  "        if (!err && res.code === 200) {",
+                  "            pm.environment.set('jwt_token', res.json().token);",
+                  "        }",
+                  "    });",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "",
+                  "pm.test('Rotacion 270° CW correcta (dimensiones 2x3)', function () {",
+                  "    pm.expect(json.rotated).to.have.lengthOf(2);",
+                  "    pm.expect(json.rotated[0]).to.have.lengthOf(3);",
+                  "});",
+                  "",
+                  "pm.test('Valores rotados: [[2,4,6],[1,3,5]]', function () {",
+                  "    pm.expect(json.rotated).to.eql([[2, 4, 6], [1, 3, 5]]);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"matrix\": [\n    [1, 2],\n    [3, 4],\n    [5, 6]\n  ],\n  \"rotation\": \"clockwise_270\"\n}"
+            },
+            "url": {
+              "raw": "{{go_api_url}}/api/v1/qr-factorization",
+              "host": ["{{go_api_url}}"],
+              "path": ["api", "v1", "qr-factorization"]
+            },
+            "description": "Rotacion de 270° horario (equivalente a 90° antihorario) antes de la factorizacion QR.\n\n**Resultado esperado**: `[[2,4,6],[1,3,5]]` (dimensiones 2x3)"
+          },
+          "response": []
+        },
+        {
+          "name": "POST QR con Transposicion",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "if (!pm.environment.get('jwt_token')) {",
+                  "    pm.sendRequest({",
+                  "        url: pm.environment.get('go_api_url') + '/api/v1/auth/login',",
+                  "        method: 'POST',",
+                  "        header: { 'Content-Type': 'application/json' },",
+                  "        body: {",
+                  "            mode: 'raw',",
+                  "            raw: JSON.stringify({",
+                  "                username: pm.environment.get('username'),",
+                  "                password: pm.environment.get('password')",
+                  "            })",
+                  "        }",
+                  "    }, function (err, res) {",
+                  "        if (!err && res.code === 200) {",
+                  "            pm.environment.set('jwt_token', res.json().token);",
+                  "        }",
+                  "    });",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "",
+                  "pm.test('Transposicion correcta: 2x3 → 3x2', function () {",
+                  "    pm.expect(json.rotated).to.have.lengthOf(3);",
+                  "    pm.expect(json.rotated[0]).to.have.lengthOf(2);",
+                  "});",
+                  "",
+                  "pm.test('Valores transpuestos: [[1,4],[2,5],[3,6]]', function () {",
+                  "    pm.expect(json.rotated).to.eql([[1, 4], [2, 5], [3, 6]]);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"matrix\": [\n    [1, 2, 3],\n    [4, 5, 6]\n  ],\n  \"rotation\": \"transpose\"\n}"
+            },
+            "url": {
+              "raw": "{{go_api_url}}/api/v1/qr-factorization",
+              "host": ["{{go_api_url}}"],
+              "path": ["api", "v1", "qr-factorization"]
+            },
+            "description": "Transposicion de la matriz (filas ↔ columnas) antes de la factorizacion QR.\n\n**Entrada 2x3**:\n```\n[1, 2, 3]\n[4, 5, 6]\n```\n**Transpuesta 3x2**: `[[1,4],[2,5],[3,6]]`"
+          },
+          "response": []
+        },
+        {
+          "name": "POST QR con Volteo Horizontal",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "if (!pm.environment.get('jwt_token')) {",
+                  "    pm.sendRequest({",
+                  "        url: pm.environment.get('go_api_url') + '/api/v1/auth/login',",
+                  "        method: 'POST',",
+                  "        header: { 'Content-Type': 'application/json' },",
+                  "        body: {",
+                  "            mode: 'raw',",
+                  "            raw: JSON.stringify({",
+                  "                username: pm.environment.get('username'),",
+                  "                password: pm.environment.get('password')",
+                  "            })",
+                  "        }",
+                  "    }, function (err, res) {",
+                  "        if (!err && res.code === 200) {",
+                  "            pm.environment.set('jwt_token', res.json().token);",
+                  "        }",
+                  "    });",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "",
+                  "pm.test('Volteo horizontal correcto: [[3,2,1],[6,5,4]]', function () {",
+                  "    pm.expect(json.rotated).to.eql([[3, 2, 1], [6, 5, 4]]);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"matrix\": [\n    [1, 2, 3],\n    [4, 5, 6]\n  ],\n  \"rotation\": \"horizontal_flip\"\n}"
+            },
+            "url": {
+              "raw": "{{go_api_url}}/api/v1/qr-factorization",
+              "host": ["{{go_api_url}}"],
+              "path": ["api", "v1", "qr-factorization"]
+            },
+            "description": "Volteo horizontal (espejo izquierda-derecha) de cada fila antes de la factorizacion QR.\n\n**Resultado esperado**: `[[3,2,1],[6,5,4]]`"
+          },
+          "response": []
+        },
+        {
+          "name": "POST QR con Volteo Vertical",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "if (!pm.environment.get('jwt_token')) {",
+                  "    pm.sendRequest({",
+                  "        url: pm.environment.get('go_api_url') + '/api/v1/auth/login',",
+                  "        method: 'POST',",
+                  "        header: { 'Content-Type': 'application/json' },",
+                  "        body: {",
+                  "            mode: 'raw',",
+                  "            raw: JSON.stringify({",
+                  "                username: pm.environment.get('username'),",
+                  "                password: pm.environment.get('password')",
+                  "            })",
+                  "        }",
+                  "    }, function (err, res) {",
+                  "        if (!err && res.code === 200) {",
+                  "            pm.environment.set('jwt_token', res.json().token);",
+                  "        }",
+                  "    });",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "",
+                  "pm.test('Volteo vertical correcto: [[4,5,6],[1,2,3]]', function () {",
+                  "    pm.expect(json.rotated).to.eql([[4, 5, 6], [1, 2, 3]]);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"matrix\": [\n    [1, 2, 3],\n    [4, 5, 6]\n  ],\n  \"rotation\": \"vertical_flip\"\n}"
+            },
+            "url": {
+              "raw": "{{go_api_url}}/api/v1/qr-factorization",
+              "host": ["{{go_api_url}}"],
+              "path": ["api", "v1", "qr-factorization"]
+            },
+            "description": "Volteo vertical (inversion de filas) antes de la factorizacion QR.\n\n**Resultado esperado**: `[[4,5,6],[1,2,3]]`"
+          },
+          "response": []
+        },
+        {
+          "name": "POST QR Matriz 3x3 Identidad",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "if (!pm.environment.get('jwt_token')) {",
+                  "    pm.sendRequest({",
+                  "        url: pm.environment.get('go_api_url') + '/api/v1/auth/login',",
+                  "        method: 'POST',",
+                  "        header: { 'Content-Type': 'application/json' },",
+                  "        body: {",
+                  "            mode: 'raw',",
+                  "            raw: JSON.stringify({",
+                  "                username: pm.environment.get('username'),",
+                  "                password: pm.environment.get('password')",
+                  "            })",
+                  "        }",
+                  "    }, function (err, res) {",
+                  "        if (!err && res.code === 200) {",
+                  "            pm.environment.set('jwt_token', res.json().token);",
+                  "        }",
+                  "    });",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "",
+                  "pm.test('QR de identidad: Q ≈ I, R ≈ I', function () {",
+                  "    pm.expect(json.Q[0][0]).to.be.closeTo(1, 0.001);",
+                  "    pm.expect(json.R[0][0]).to.be.closeTo(1, 0.001);",
+                  "});",
+                  "",
+                  "pm.test('Matriz identidad es diagonal', function () {",
+                  "    pm.expect(json.stats.diagonalMatrices.count).to.be.at.least(1);",
+                  "});",
+                  "",
+                  "pm.test('Q y R son matrices 3x3', function () {",
+                  "    pm.expect(json.Q).to.have.lengthOf(3);",
+                  "    pm.expect(json.Q[0]).to.have.lengthOf(3);",
+                  "    pm.expect(json.R).to.have.lengthOf(3);",
+                  "    pm.expect(json.R[0]).to.have.lengthOf(3);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"matrix\": [\n    [1, 0, 0],\n    [0, 1, 0],\n    [0, 0, 1]\n  ],\n  \"rotation\": \"none\"\n}"
+            },
+            "url": {
+              "raw": "{{go_api_url}}/api/v1/qr-factorization",
+              "host": ["{{go_api_url}}"],
+              "path": ["api", "v1", "qr-factorization"]
+            },
+            "description": "Caso especial: factorizacion QR de la matriz identidad 3x3.\n\nPara la identidad, Q ≈ I y R ≈ I (con tolerancia de redondeo). La matriz identidad tambien es detectada como diagonal por la Node API."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Estadisticas (Node API Directo)",
+      "description": "Requests directos a la Node API para probar el calculo de estadisticas sin pasar por la Go API. Util cuando se necesita testear el servicio de stats de forma aislada.",
+      "item": [
+        {
+          "name": "POST Stats con 2 Matrices",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "if (!pm.environment.get('jwt_token')) {",
+                  "    pm.sendRequest({",
+                  "        url: pm.environment.get('node_api_url') + '/api/v1/auth/login',",
+                  "        method: 'POST',",
+                  "        header: { 'Content-Type': 'application/json' },",
+                  "        body: {",
+                  "            mode: 'raw',",
+                  "            raw: JSON.stringify({",
+                  "                username: pm.environment.get('username'),",
+                  "                password: pm.environment.get('password')",
+                  "            })",
+                  "        }",
+                  "    }, function (err, res) {",
+                  "        if (!err && res.code === 200) {",
+                  "            pm.environment.set('jwt_token', res.json().token);",
+                  "        }",
+                  "    });",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "",
+                  "pm.test('Estadisticas correctas para 2 matrices 2x2', function () {",
+                  "    pm.expect(json.max).to.eql(8);",
+                  "    pm.expect(json.min).to.eql(1);",
+                  "    pm.expect(json.average).to.eql(4.5);",
+                  "    pm.expect(json.sum).to.be.closeTo(36, 0.001);",
+                  "    pm.expect(json.totalElements).to.eql(8);",
+                  "    pm.expect(json.numberOfMatrices).to.eql(2);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"matrices\": [\n    [[1, 2], [3, 4]],\n    [[5, 6], [7, 8]]\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{node_api_url}}/api/v1/stats",
+              "host": ["{{node_api_url}}"],
+              "path": ["api", "v1", "stats"]
+            },
+            "description": "Calculo de estadisticas sobre 2 matrices 2x2.\n\n```\nMatriz A: [1, 2; 3, 4]\nMatriz B: [5, 6; 7, 8]\n\nmax = 8, min = 1, average = 4.5, sum = 36\n```"
+          },
+          "response": []
+        },
+        {
+          "name": "POST Stats con Matriz Diagonal",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "if (!pm.environment.get('jwt_token')) {",
+                  "    pm.sendRequest({",
+                  "        url: pm.environment.get('node_api_url') + '/api/v1/auth/login',",
+                  "        method: 'POST',",
+                  "        header: { 'Content-Type': 'application/json' },",
+                  "        body: {",
+                  "            mode: 'raw',",
+                  "            raw: JSON.stringify({",
+                  "                username: pm.environment.get('username'),",
+                  "                password: pm.environment.get('password')",
+                  "            })",
+                  "        }",
+                  "    }, function (err, res) {",
+                  "        if (!err && res.code === 200) {",
+                  "            pm.environment.set('jwt_token', res.json().token);",
+                  "        }",
+                  "    });",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "",
+                  "pm.test('Ambas matrices detectadas como diagonales', function () {",
+                  "    pm.expect(json.diagonalMatrices.count).to.eql(2);",
+                  "});",
+                  "",
+                  "pm.test('Estadisticas correctas', function () {",
+                  "    pm.expect(json.max).to.eql(4);",
+                  "    pm.expect(json.min).to.eql(0);",
+                  "    pm.expect(json.sum).to.eql(10);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"matrices\": [\n    [[1, 0], [0, 2]],\n    [[3, 0], [0, 4]]\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{node_api_url}}/api/v1/stats",
+              "host": ["{{node_api_url}}"],
+              "path": ["api", "v1", "stats"]
+            },
+            "description": "Prueba de deteccion de matrices diagonales. La Node API identifica matrices cuadradas cuyos elementos fuera de la diagonal son ≈ 0 (tolerancia 1×10⁻¹⁰).\n\nAmbas matrices de entrada son diagonales, por lo que `diagonalMatrices.count` debe ser 2."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Validacion y Errores",
+      "description": "Casos de error que validan el manejo de inputs invalidos, autenticacion faltante, y condiciones de borde en ambas APIs.",
+      "item": [
+        {
+          "name": "POST QR Sin JWT (401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 401 — token faltante', function () {",
+                  "    pm.response.to.have.status(401);",
+                  "});",
+                  "",
+                  "pm.test('Codigo de error relacionado a autenticacion', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.code || json.error || '').to.match(/AUTH|auth|token|Token/);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"matrix\": [[1, 2]],\n  \"rotation\": \"none\"\n}"
+            },
+            "url": {
+              "raw": "{{go_api_url}}/api/v1/qr-factorization",
+              "host": ["{{go_api_url}}"],
+              "path": ["api", "v1", "qr-factorization"]
+            },
+            "description": "Request sin header Authorization. Debe retornar 401 Unauthorized."
+          },
+          "response": []
+        },
+        {
+          "name": "POST QR Matriz Vacia (400)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "if (!pm.environment.get('jwt_token')) {",
+                  "    pm.sendRequest({",
+                  "        url: pm.environment.get('go_api_url') + '/api/v1/auth/login',",
+                  "        method: 'POST',",
+                  "        header: { 'Content-Type': 'application/json' },",
+                  "        body: {",
+                  "            mode: 'raw',",
+                  "            raw: JSON.stringify({",
+                  "                username: pm.environment.get('username'),",
+                  "                password: pm.environment.get('password')",
+                  "            })",
+                  "        }",
+                  "    }, function (err, res) {",
+                  "        if (!err && res.code === 200) {",
+                  "            pm.environment.set('jwt_token', res.json().token);",
+                  "        }",
+                  "    });",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 400 — matriz vacia', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "pm.test('Mensaje indica matriz vacia', function () {",
+                  "    const json = pm.response.json();",
+                  "    const msg = (json.error || json.message || '').toLowerCase();",
+                  "    pm.expect(msg).to.match(/empty|vacia|vacio|vacía/);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"matrix\": [],\n  \"rotation\": \"none\"\n}"
+            },
+            "url": {
+              "raw": "{{go_api_url}}/api/v1/qr-factorization",
+              "host": ["{{go_api_url}}"],
+              "path": ["api", "v1", "qr-factorization"]
+            },
+            "description": "Envia una matriz vacia `[]`. La Go API debe validar que la matriz tenga al menos 1 fila."
+          },
+          "response": []
+        },
+        {
+          "name": "POST QR Rotacion Invalida (400)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "if (!pm.environment.get('jwt_token')) {",
+                  "    pm.sendRequest({",
+                  "        url: pm.environment.get('go_api_url') + '/api/v1/auth/login',",
+                  "        method: 'POST',",
+                  "        header: { 'Content-Type': 'application/json' },",
+                  "        body: {",
+                  "            mode: 'raw',",
+                  "            raw: JSON.stringify({",
+                  "                username: pm.environment.get('username'),",
+                  "                password: pm.environment.get('password')",
+                  "            })",
+                  "        }",
+                  "    }, function (err, res) {",
+                  "        if (!err && res.code === 200) {",
+                  "            pm.environment.set('jwt_token', res.json().token);",
+                  "        }",
+                  "    });",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 400 — rotacion invalida', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "pm.test('Lista rotaciones validas en el mensaje', function () {",
+                  "    const json = pm.response.json();",
+                  "    const msg = (json.error || json.message || '').toLowerCase();",
+                  "    pm.expect(msg).to.match(/allowed|valida|valid|clockwise_90/);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"matrix\": [[1, 2], [3, 4]],\n  \"rotation\": \"giro_magico\"\n}"
+            },
+            "url": {
+              "raw": "{{go_api_url}}/api/v1/qr-factorization",
+              "host": ["{{go_api_url}}"],
+              "path": ["api", "v1", "qr-factorization"]
+            },
+            "description": "Usa un valor de rotacion no soportado (`giro_magico`). La respuesta debe indicar los valores permitidos."
+          },
+          "response": []
+        },
+        {
+          "name": "POST QR Matriz Rango-Deficiente (422)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "if (!pm.environment.get('jwt_token')) {",
+                  "    pm.sendRequest({",
+                  "        url: pm.environment.get('go_api_url') + '/api/v1/auth/login',",
+                  "        method: 'POST',",
+                  "        header: { 'Content-Type': 'application/json' },",
+                  "        body: {",
+                  "            mode: 'raw',",
+                  "            raw: JSON.stringify({",
+                  "                username: pm.environment.get('username'),",
+                  "                password: pm.environment.get('password')",
+                  "            })",
+                  "        }",
+                  "    }, function (err, res) {",
+                  "        if (!err && res.code === 200) {",
+                  "            pm.environment.set('jwt_token', res.json().token);",
+                  "        }",
+                  "    });",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 422 — matriz singular / rango-deficiente', function () {",
+                  "    pm.response.to.have.status(422);",
+                  "});",
+                  "",
+                  "pm.test('Error indica problema de rango o singularidad', function () {",
+                  "    const json = pm.response.json();",
+                  "    const msg = (json.error || json.message || '').toLowerCase();",
+                  "    pm.expect(msg).to.match(/rank|singular|rango|linealmente|qr/);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"matrix\": [\n    [1, 2],\n    [2, 4]\n  ],\n  \"rotation\": \"none\"\n}"
+            },
+            "url": {
+              "raw": "{{go_api_url}}/api/v1/qr-factorization",
+              "host": ["{{go_api_url}}"],
+              "path": ["api", "v1", "qr-factorization"]
+            },
+            "description": "Matriz 2x2 con filas linealmente dependientes (fila 2 = 2 × fila 1). La factorizacion QR requiere que la matriz sea de rango completo (no singular). El algoritmo detecta R[j][j] ≈ 0 y retorna 422."
+          },
+          "response": []
+        },
+        {
+          "name": "POST Stats sin Matrices (400)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "if (!pm.environment.get('jwt_token')) {",
+                  "    pm.sendRequest({",
+                  "        url: pm.environment.get('node_api_url') + '/api/v1/auth/login',",
+                  "        method: 'POST',",
+                  "        header: { 'Content-Type': 'application/json' },",
+                  "        body: {",
+                  "            mode: 'raw',",
+                  "            raw: JSON.stringify({",
+                  "                username: pm.environment.get('username'),",
+                  "                password: pm.environment.get('password')",
+                  "            })",
+                  "        }",
+                  "    }, function (err, res) {",
+                  "        if (!err && res.code === 200) {",
+                  "            pm.environment.set('jwt_token', res.json().token);",
+                  "        }",
+                  "    });",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 400 — array vacio', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "pm.test('Error indica array vacio o minimo de matrices', function () {",
+                  "    const json = pm.response.json();",
+                  "    const msg = (json.error || json.message || '').toLowerCase();",
+                  "    pm.expect(msg).to.match(/empty|vacio|vacío|minimum|minimo/);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"matrices\": []\n}"
+            },
+            "url": {
+              "raw": "{{node_api_url}}/api/v1/stats",
+              "host": ["{{node_api_url}}"],
+              "path": ["api", "v1", "stats"]
+            },
+            "description": "Envia un array de matrices vacio `[]`. La Node API (Zod) debe validar que se requiere al menos 1 matriz."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Flujo Completo E2E",
+      "description": "Carpeta para ejecutar el flujo end-to-end completo en el Collection Runner de Postman. El orden es:\n\n1. POST Login (Go API) → obtiene JWT\n2. POST QR Factorization (Go API) → rotacion + QR + stats\n\nEl token JWT del paso 1 se comparte automaticamente via variables de environment.",
+      "item": [
+        {
+          "name": "1. LOGIN — Obtener JWT",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Login exitoso — Status 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "pm.environment.set('jwt_token', json.token);",
+                  "console.log('✅ JWT obtenido: ' + json.token.substring(0, 20) + '...');"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"admin\",\n  \"password\": \"secret\"\n}"
+            },
+            "url": {
+              "raw": "{{go_api_url}}/api/v1/auth/login",
+              "host": ["{{go_api_url}}"],
+              "path": ["api", "v1", "auth", "login"]
+            },
+            "description": "Paso 1 del flujo E2E: autenticacion contra la Go API para obtener el token JWT."
+          },
+          "response": []
+        },
+        {
+          "name": "2. QR — Factorizacion Completa",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('QR Factorization exitoso — Status 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "",
+                  "pm.test('Respuesta contiene los 5 campos', function () {",
+                  "    pm.expect(json).to.have.property('original');",
+                  "    pm.expect(json).to.have.property('rotated');",
+                  "    pm.expect(json).to.have.property('Q');",
+                  "    pm.expect(json).to.have.property('R');",
+                  "    pm.expect(json).to.have.property('stats');",
+                  "});",
+                  "",
+                  "pm.test('Stats no es null (Node API respondio)', function () {",
+                  "    pm.expect(json.stats).to.not.be.null;",
+                  "    pm.expect(json.stats).to.be.an('object');",
+                  "});",
+                  "",
+                  "pm.test('Dimensiones: original 3x3, rotated 3x3, Q 3x3, R 3x3', function () {",
+                  "    pm.expect(json.original).to.have.lengthOf(3);",
+                  "    pm.expect(json.rotated).to.have.lengthOf(3);",
+                  "    pm.expect(json.Q).to.have.lengthOf(3);",
+                  "    pm.expect(json.R).to.have.lengthOf(3);",
+                  "});",
+                  "",
+                  "pm.test('Rotacion 90° aplicada: valores correctos', function () {",
+                  "    pm.expect(json.rotated).to.eql([[7, 4, 1], [8, 5, 2], [9, 6, 3]]);",
+                  "});",
+                  "",
+                  "pm.test('Estadisticas contienen todas las metricas', function () {",
+                  "    pm.expect(json.stats).to.include.all.keys(",
+                  "        'max', 'min', 'average', 'sum', 'totalElements', 'numberOfMatrices', 'diagonalMatrices'",
+                  "    );",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"matrix\": [\n    [1, 2, 3],\n    [4, 5, 6],\n    [7, 8, 9]\n  ],\n  \"rotation\": \"clockwise_90\"\n}"
+            },
+            "url": {
+              "raw": "{{go_api_url}}/api/v1/qr-factorization",
+              "host": ["{{go_api_url}}"],
+              "path": ["api", "v1", "qr-factorization"]
+            },
+            "description": "Paso 2 del flujo E2E: factorizacion QR de una matriz 3x3 con rotacion 90°.\n\nUsa el token JWT obtenido en el paso 1.\n\n**Flujo interno**: Go API rota → QR → envia a Node API → recibe stats → responde completo."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

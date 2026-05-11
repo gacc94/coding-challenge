@@ -1,5 +1,7 @@
-import { Component, signal } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
+import { Meta } from '@angular/platform-browser';
+import { APP_VERSION, APP_BUILD } from '../environments/version';
 
 @Component({
   selector: 'gacc-root',
@@ -8,5 +10,9 @@ import { RouterOutlet } from '@angular/router';
   styleUrl: './app.scss',
 })
 export class App {
-  protected readonly title = signal('Coding Challenge QR');
+  constructor() {
+    const meta = inject(Meta);
+    meta.addTag({ name: 'app-version', content: APP_VERSION });
+    meta.addTag({ name: 'app-build', content: APP_BUILD });
+  }
 }

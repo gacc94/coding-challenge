@@ -115,6 +115,27 @@ Si la Node API no responde, la Go API registra el error y retorna Q, R y la matr
 | `/input` | Privado | Formulario de matriz + rotacion |
 | `/results` | Privado | Resultados Q, R, rotated + stats |
 
+### Postman Collection
+
+Coleccion completa con **21 requests** listos para importar y probar todas las APIs:
+
+```
+File → Import → docs/postman/interseguro-challenge.postman_collection.json
+```
+
+| Carpeta | Requests |
+|---|---|
+| Health Checks | Go API + Node API |
+| Autenticacion | Login en ambas APIs (auto-guarda JWT) |
+| Factorizacion QR | 8 requests: todas las rotaciones + identidad |
+| Estadisticas | Stats directo a Node API |
+| Validacion y Errores | 401, 400, 422 |
+| Flujo Completo E2E | Login → QR con rotacion 90° |
+
+> Las variables (`go_api_url`, `node_api_url`, `username`, `password`) vienen pre-configuradas para `localhost`. Los requests protegidos ejecutan login automatico si no hay token.
+>
+> Ver **[docs/POSTMAN_COLLECTION.md](docs/POSTMAN_COLLECTION.md)** para la documentacion completa de cada request.
+
 ---
 
 ## Rotacion de Matrices

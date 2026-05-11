@@ -1,7 +1,7 @@
 # Postman Collection - Coding Challenge Interseguro
 
 **Archivo**: `docs/postman/interseguro-challenge.postman_collection.json`  
-**Prerrequisitos**: Docker Compose corriendo (`docker-compose up`)
+**Prerrequisitos**: Docker Compose corriendo (`make up`)
 
 ---
 
@@ -713,22 +713,13 @@ if (pm.request.url.toString().includes("/qr-factorization")) {
 
 ### 5.1 Importar en Postman
 
-```bash
-# Opción 1: Importar archivo
-File → Import → Seleccionar `docs/postman/interseguro-challenge.postman_collection.json`
-
-# Opción 2: Importar desde URL (si está en repo público)
-File → Import → Link → URL del archivo raw en GitHub
+```
+File → Import → Seleccionar docs/postman/interseguro-challenge.postman_collection.json
 ```
 
-### 5.2 Configurar Environment
+Las variables de entorno (`go_api_url`, `node_api_url`, `username`, `password`) vienen pre-configuradas en la coleccion para entorno local.
 
-1. **Environments** → **Create Environment**
-2. Nombre: `Interseguro Challenge - Local`
-3. Agregar variables de la sección 1
-4. **Save** → **Set as active**
-
-### 5.3 Ejecutar Pruebas
+### 5.2 Ejecutar Pruebas
 
 ```bash
 # Opción 1: Postman GUI
@@ -742,28 +733,25 @@ newman run docs/postman/interseguro-challenge.postman_collection.json \
   --reporters cli
 ```
 
-### 5.4 Ejecutar en CI/CD (GitHub Actions)
+### 5.3 Ejecutar en CI (GitHub Actions + Newman)
 
 ```yaml
 - name: Postman Integration Tests
   run: |
     npm install -g newman
     newman run docs/postman/interseguro-challenge.postman_collection.json \
-      --environment docs/postman/interseguro-challenge.environment.json \
       --delay-request 500 \
       --reporters cli
 ```
 
 ---
 
-## 6. Estructura de Archivos
+## 6. Archivos
 
 ```
-docs/
-└── postman/
-    ├── POSTMAN_COLLECTION.md                       # Este documento
-    ├── interseguro-challenge.postman_collection.json  # Colección (crear al implementar)
-    └── interseguro-challenge.environment.json        # Environment variables
+docs/postman/
+├── interseguro-challenge.postman_collection.json   ← Coleccion (este archivo)
+└── POSTMAN_COLLECTION.md                            ← Este documento
 ```
 
 ---
