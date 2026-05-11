@@ -1,4 +1,5 @@
 @use 'variables' as *;
+@use 'mixins' as *;
 
 :host {
   display: block;
@@ -8,7 +9,7 @@
 }
 
 .overview {
-  // ─── Global Nav (44px black) ─────────
+  // ─── Global Nav (44px black, sticky) ────────────────────────────
   &__global-nav {
     display: flex;
     align-items: center;
@@ -57,24 +58,37 @@
   &__global-nav-actions {
     display: flex;
     align-items: center;
+    gap: 8px;
     margin-left: auto;
   }
 
-  &__logout-btn {
-    color: $color-on-dark-muted !important;
+  &__nav-pill {
+    font-size: $font-size-fine-print;
+    font-weight: 400;
+    font-family: $font-family;
+    padding: 4px 14px;
+    border-radius: $radius-pill;
+    text-decoration: none;
+    transition: opacity 0.15s ease, background 0.15s ease;
 
     &:hover {
-      color: $color-on-dark !important;
+      opacity: 0.85;
+    }
+
+    &--outline {
+      border: 1px solid $color-primary;
+      color: $color-primary;
+      background: transparent;
+    }
+
+    &--filled {
+      background: $color-primary;
+      color: $color-on-dark;
+      border: 1px solid $color-primary;
     }
   }
 
-  &__logout-icon {
-    font-size: 20px;
-    width: 20px;
-    height: 20px;
-  }
-
-  // ─── Sub-nav (52px frosted) ──────────
+  // ─── Sub Nav (52px frosted glass, sticky below global nav) ──────
   &__sub-nav {
     display: flex;
     align-items: center;
@@ -115,14 +129,14 @@
     }
   }
 
-  // ─── Content wrapper ─────────────────
+  // ─── Content wrapper ────────────────────────────────────────────
   &__content {
     max-width: $content-max-width;
     margin: 0 auto;
     padding: 0 24px;
   }
 
-  // ─── Hero ────────────────────────────
+  // ─── Hero ───────────────────────────────────────────────────────
   &__hero {
     text-align: center;
     padding: $section-padding 0 60px;
@@ -162,7 +176,7 @@
     gap: 16px;
   }
 
-  // ─── Shared CTAs ─────────────────────
+  // ─── Shared CTA buttons (pill shaped) ───────────────────────────
   &__cta {
     padding: 11px 22px;
     border-radius: $radius-pill;
@@ -173,7 +187,7 @@
     cursor: pointer;
     text-decoration: none;
     display: inline-block;
-    transition: transform 0.1s ease;
+    transition: transform 0.1s ease, opacity 0.15s ease;
 
     &:active {
       transform: scale(0.95);
@@ -183,6 +197,10 @@
       border: none;
       background: $color-primary;
       color: $color-on-dark;
+
+      &:hover {
+        opacity: 0.9;
+      }
 
       &:focus-visible {
         outline: 2px solid $color-primary-focus;
@@ -195,6 +213,10 @@
       background: transparent;
       color: $color-primary;
 
+      &:hover {
+        background: rgba($color-primary, 0.05);
+      }
+
       &:focus-visible {
         outline: 2px solid $color-primary-focus;
         outline-offset: 2px;
@@ -202,11 +224,27 @@
     }
   }
 
-  // ─── Full-bleed tile helper ──────────
-  &__tile-full {
+  // ─── Full-bleed tile system ─────────────────────────────────────
+  &__tile {
     margin-left: calc(-50vw + 50%);
     margin-right: calc(-50vw + 50%);
     width: 100vw;
+    padding: $section-padding 0;
+
+    &--parchment {
+      background: $color-canvas-parchment;
+    }
+
+    &--dark {
+      background: $color-surface-dark;
+    }
+
+    &--image {
+      background:
+        linear-gradient(135deg, rgba(39, 39, 41, 0.92) 0%, rgba(20, 20, 22, 0.97) 100%),
+        url('/assets/hero-bg.jpg') center / cover no-repeat;
+      position: relative;
+    }
   }
 
   &__tile-inner {
@@ -215,36 +253,110 @@
     padding: 0 24px;
   }
 
-  // ─── Features tile (parchment) ───────
-  &__features-tile {
-    @extend .overview__tile-full;
-    background: $color-canvas-parchment;
-    padding: $section-padding 0;
-  }
-
-  &__features-inner {
-    @extend .overview__tile-inner;
-  }
-
-  &__features-heading {
+  &__tile-heading {
     font-size: 40px;
     font-weight: 600;
     line-height: 1.1;
     color: $color-ink;
-    margin: 0 0 32px;
+    margin: 0 0 12px;
+
+    &--light {
+      color: $color-on-dark;
+    }
   }
 
-  &__features-grid {
+  &__tile-subheading {
+    font-size: 21px;
+    font-weight: 400;
+    line-height: 1.19;
+    letter-spacing: 0.231px;
+    color: $color-ink-muted;
+    margin: 0 0 48px;
+    max-width: 640px;
+
+    &--light {
+      color: $color-on-dark-muted;
+    }
+  }
+
+  // ─── Matrix demo ────────────────────────────────────────────────
+  &__matrix-demo {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 32px;
+    margin-bottom: 40px;
+  }
+
+  &__matrix-block {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+  }
+
+  &__matrix-label {
+    font-size: $font-size-fine-print;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: $color-ink-muted;
+  }
+
+  &__matrix-grid {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 24px;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 4px;
+    background: $color-hairline;
+    padding: 6px;
+    border-radius: $radius-md;
   }
 
-  &__feature-card {
+  &__cell {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
     background: $color-canvas;
-    border-radius: $radius-lg;
+    border-radius: $radius-sm;
+    font-size: $font-size-caption;
+    font-weight: 500;
+    font-family: $font-family;
+    color: $color-ink;
+    transition: background 0.3s ease, color 0.3s ease;
+
+    &--transformed {
+      background: rgba($color-primary, 0.08);
+      color: $color-primary;
+    }
+  }
+
+  &__matrix-arrow {
+    font-size: 28px;
+    width: 28px;
+    height: 28px;
+    color: $color-ink-muted;
+    flex-shrink: 0;
+  }
+
+  // ─── Rotation type chips ────────────────────────────────────────
+  &__chip-list {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  &__chip {
+    font-size: $font-size-fine-print;
+    font-weight: 500;
+    font-family: $font-family;
+    padding: 6px 16px;
+    border-radius: $radius-pill;
+    background: $color-canvas;
     border: 1px solid $color-hairline;
-    padding: $spacing-lg;
+    color: $color-ink;
     transition: border-color 0.2s ease;
 
     &:hover {
@@ -252,142 +364,132 @@
     }
   }
 
-  &__feature-icon {
-    font-size: 32px;
-    width: 32px;
-    height: 32px;
-    color: $color-primary;
-    margin-bottom: 16px;
-  }
-
-  &__feature-title {
-    font-size: $font-size-body;
-    font-weight: 600;
-    line-height: 1.24;
-    letter-spacing: -0.374px;
-    color: $color-ink;
-    margin: 0 0 4px;
-  }
-
-  &__feature-subtitle {
-    font-size: $font-size-caption;
-    font-weight: 400;
-    line-height: 1.43;
-    letter-spacing: -0.224px;
-    color: $color-ink-muted;
-    margin: 0 0 12px;
-  }
-
-  &__feature-body {
-    font-size: $font-size-body;
-    font-weight: 400;
-    line-height: $line-height-body;
-    letter-spacing: -0.374px;
-    color: $color-ink-muted;
-    margin: 0;
-  }
-
-  // ─── Analytics tile (dark) ───────────
-  &__analytics-tile {
-    @extend .overview__tile-full;
-    background: $color-surface-dark;
-    padding: $section-padding 0;
-  }
-
-  &__analytics-inner {
-    @extend .overview__tile-inner;
-  }
-
-  &__analytics-heading {
-    font-size: 40px;
-    font-weight: 600;
-    line-height: 1.1;
-    color: $color-on-dark;
-    margin: 0 0 12px;
-  }
-
-  &__analytics-subheading {
-    font-size: 21px;
-    font-weight: 400;
-    line-height: 1.19;
-    letter-spacing: 0.231px;
-    color: $color-on-dark-muted;
-    margin: 0 0 32px;
-    max-width: 640px;
-  }
-
-  &__analytics-grid {
+  // ─── Metrics grid ───────────────────────────────────────────────
+  &__metrics-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 24px;
   }
 
-  &__analytics-card {
-    text-align: center;
-  }
-
-  &__analytics-icon-wrap {
-    display: inline-flex;
+  &__metric-card {
+    display: flex;
+    flex-direction: column;
     align-items: center;
-    justify-content: center;
-    width: 56px;
-    height: 56px;
-    border-radius: $radius-md;
-    background: rgba($color-on-dark, 0.08);
-    margin-bottom: 16px;
+    text-align: center;
+    padding: $spacing-xxl $spacing-xl;
+    background: rgba($color-on-dark, 0.04);
+    border-radius: $radius-lg;
+    border: 1px solid rgba($color-on-dark, 0.08);
+    transition: border-color 0.3s ease;
+
+    &:hover {
+      border-color: rgba($color-primary-on-dark, 0.4);
+    }
   }
 
-  &__analytics-icon {
-    font-size: 28px;
-    width: 28px;
-    height: 28px;
+  &__metric-value {
+    font-size: 40px;
+    font-weight: 600;
+    line-height: 1.1;
+    letter-spacing: -0.015em;
     color: $color-primary-on-dark;
+    margin-bottom: 8px;
   }
 
-  &__analytics-title {
+  &__metric-label {
     font-size: $font-size-body;
     font-weight: 600;
     line-height: 1.24;
     letter-spacing: -0.374px;
     color: $color-on-dark;
-    margin: 0 0 8px;
+    margin-bottom: 4px;
   }
 
-  &__analytics-body {
-    font-size: $font-size-body;
+  &__metric-sublabel {
+    font-size: $font-size-caption;
     font-weight: 400;
-    line-height: $line-height-body;
-    letter-spacing: -0.374px;
+    line-height: 1.43;
+    letter-spacing: -0.224px;
     color: $color-on-dark-muted;
-    margin: 0;
   }
 
-  // ─── CTA bottom tile ─────────────────
-  &__cta-tile {
-    @extend .overview__tile-full;
-    background: $color-canvas-parchment;
-    padding: $section-padding 0;
+  // ─── Bottom CTAs ────────────────────────────────────────────────
+  &__bottom-ctas {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
   }
 
-  &__cta-inner {
-    @extend .overview__tile-inner;
-    text-align: center;
+  // ─── Responsive ─────────────────────────────────────────────────
+  @include tablet {
+    &__hero-heading {
+      font-size: 40px;
+    }
+
+    &__hero-tagline {
+      font-size: 21px;
+    }
+
+    &__tile-heading {
+      font-size: 32px;
+    }
+
+    &__matrix-demo {
+      flex-direction: column;
+    }
+
+    &__matrix-arrow {
+      transform: rotate(90deg);
+    }
+
+    &__metrics-grid {
+      grid-template-columns: 1fr;
+    }
   }
 
-  &__cta-heading {
-    font-size: 40px;
-    font-weight: 600;
-    line-height: 1.1;
-    color: $color-ink;
-    margin: 0 0 12px;
-  }
+  @include phone {
+    &__global-nav-links {
+      gap: 12px;
+      margin-left: 16px;
+    }
 
-  &__cta-subheading {
-    font-size: 21px;
-    font-weight: 400;
-    line-height: 1.19;
-    letter-spacing: 0.231px;
-    color: $color-ink-muted;
-    margin: 0 0 32px;
+    &__hero {
+      padding: 48px 0 40px;
+    }
+
+    &__hero-heading {
+      font-size: 32px;
+    }
+
+    &__hero-tagline {
+      font-size: 17px;
+    }
+
+    &__hero-description {
+      font-size: $font-size-caption;
+    }
+
+    &__hero-ctas {
+      flex-direction: column;
+      align-items: center;
+    }
+
+    &__cta {
+      width: 100%;
+      max-width: 280px;
+      text-align: center;
+    }
+
+    &__tile-heading {
+      font-size: 28px;
+    }
+
+    &__tile-subheading {
+      font-size: 17px;
+    }
+
+    &__metric-value {
+      font-size: 32px;
+    }
   }
 }

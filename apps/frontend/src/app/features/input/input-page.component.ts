@@ -1,3 +1,4 @@
+import { httpResource } from '@angular/common/http';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -7,25 +8,24 @@ import {
   signal,
   untracked,
 } from '@angular/core';
-import { Router, RouterLink } from '@angular/router';
-import { httpResource } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
+import { MatCardModule } from '@angular/material/card';
 import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
 import { MatIconModule } from '@angular/material/icon';
-import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import { MatCardModule } from '@angular/material/card';
+import { MatTooltipModule } from '@angular/material/tooltip';
+import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
-import { API_URL } from '../../core/http/api-url.token';
-import { FactorizationState } from '../../core/state/factorization.state';
 import { formatApiError, getErrorCode, type ApiErrorCode } from '../../core/http/api-error';
-import { RotationSelectorComponent } from '../../shared/components/rotation-selector/rotation-selector.component';
-import { LoadingSpinnerComponent } from '../../shared/components/loading-spinner/loading-spinner.component';
+import { API_URL } from '../../core/http/api-url.token';
 import type { FactorizationResponse } from '../../core/models/matrix.model';
 import type { RotationType } from '../../core/models/rotation.types';
+import { FactorizationState } from '../../core/state/factorization.state';
+import { LoadingSpinnerComponent } from '../../shared/components/loading-spinner/loading-spinner.component';
+import { RotationSelectorComponent } from '../../shared/components/rotation-selector/rotation-selector.component';
 
 const MIN_DIM = 1;
 const MAX_DIM = 10;

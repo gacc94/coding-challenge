@@ -43,13 +43,20 @@ func main() {
 		ServerHeader: "go-api",
 	})
 
+	app.Use(cors.New(cors.Config{
+		AllowOrigins: []string{
+			"https://coding-challenge-gacc.netlify.app",
+			"http://localhost:4200",
+			"http://localhost",
+		},
+		AllowMethods:  []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowHeaders:  []string{"Origin", "Content-Type", "Accept", "Authorization"},
+		ExposeHeaders: []string{"Content-Length"},
+		MaxAge:        86400,
+	}))
+
 	app.Use(middleware.Recover())
 	app.Use(middleware.Logger())
-	app.Use(cors.New(cors.Config{
-		AllowOrigins: []string{cfg.CORSOrigin},
-		AllowMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowHeaders: []string{"Origin", "Content-Type", "Accept", "Authorization"},
-	}))
 
 	app.Get("/swagger", func(c fiber.Ctx) error {
 		return c.Redirect().To("/swagger/index.html")
