@@ -140,6 +140,16 @@ graph LR
 
 El pipeline CI ejecuta: lint, tests con coverage, build de imagenes Docker, y reporte de cobertura en PRs.
 
+## Deploy
+
+| Servicio | Plataforma | URL | Estado |
+|---|---|---|---|
+| Frontend Angular | Netlify | [coding-challenge-gacc.netlify.app](https://coding-challenge-gacc.netlify.app) | ✅ Live |
+| Go API | Render | `https://go-api-xxxx.onrender.com` | ⏳ Pendiente |
+| Node API | Render | `https://node-api-xxxx.onrender.com` | ⏳ Pendiente |
+
+> Guias de deploy: [Frontend](docs/deploy/frontend.md) · [Go API](docs/deploy/go-api.md) · [Node API](docs/deploy/node-api.md)
+
 ## Estructura del Monorepo
 
 ```
